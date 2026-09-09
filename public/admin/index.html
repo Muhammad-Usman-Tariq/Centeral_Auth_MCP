@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central Auth for MCP - Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/style.css">
+</head>
+<body>
+  <!-- Background Glow & Grid -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="grid-overlay"></div>
+
+  <!-- Auth Screen (Login) -->
+  <div id="login-view" class="view-container">
+    <div class="login-card glass-card">
+      <div class="brand-header">
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M12 8v4"/>
+            <path d="M12 16h.01"/>
+          </svg>
+        </div>
+        <h1>Central Auth Server</h1>
+        <p class="subtitle">Unified OAuth 2.1 & Static Token Hub for MCP</p>
+      </div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" required placeholder="admin" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="••••••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="login-btn">
+          <span>Authenticate to Console</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </form>
+      <div id="login-error" class="alert alert-danger hidden"></div>
+      <div class="login-footer">
+        <span>Default credentials set via <code>.env</code></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard Screen -->
+  <div id="dashboard-view" class="view-container hidden">
+    <!-- Navigation Bar -->
+    <header class="top-nav glass-panel">
+      <div class="nav-brand">
+        <div class="brand-icon-sm">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="nav-title">
+          <span class="app-title">Central Auth MCP</span>
+          <span class="badge badge-pulse">RS256 Online</span>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <button class="nav-tab active" data-tab="clients-tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          MCP Servers
+        </button>
+        <button class="nav-tab" data-tab="audit-tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Audit Log
+        </button>
+        <button class="nav-tab" data-tab="endpoints-tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Discovery & Keys
+        </button>
+      </div>
+
+      <div class="nav-user">
+        <span class="user-badge" id="nav-username">admin</span>
+        <button class="btn btn-sm btn-ghost" id="logout-btn" title="Logout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="main-content">
+      <!-- Stats Overview Bar -->
+      <div class="stats-grid">
+        <div class="stat-card glass-card">
+          <div class="stat-meta">
+            <span class="stat-label">Total MCP Servers</span>
+            <span class="stat-value" id="stat-total-clients">0</span>
+          </div>
+          <div class="stat-icon stat-blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          </div>
+        </div>
+        <div class="stat-card glass-card">
+          <div class="stat-meta">
+            <span class="stat-label">Active / Authorized</span>
+            <span class="stat-value text-success" id="stat-active-clients">0</span>
+          </div>
+          <div class="stat-icon stat-green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+        </div>
+        <div class="stat-card glass-card">
+          <div class="stat-meta">
+            <span class="stat-label">Revoked</span>
+            <span class="stat-value text-danger" id="stat-revoked-clients">0</span>
+          </div>
+          <div class="stat-icon stat-red">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+        </div>
+        <div class="stat-card glass-card">
+          <div class="stat-meta">
+            <span class="stat-label">Total Token Events</span>
+            <span class="stat-value" id="stat-total-events">0</span>
+          </div>
+          <div class="stat-icon stat-purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 1: MCP Clients -->
+      <section id="clients-tab" class="tab-pane active">
+        <div class="section-header">
+          <div>
+            <h2>Registered MCP Servers</h2>
+            <p class="section-desc">Manage credentials and generate Mode 2 static fallback tokens for your MCP endpoints.</p>
+          </div>
+          <button class="btn btn-primary" id="open-create-modal-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Register New MCP</span>
+          </button>
+        </div>
+
+        <div class="table-container glass-card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Server Name</th>
+                <th>Client ID</th>
+                <th>Target Audience</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body">
+              <tr>
+                <td colspan="6" class="text-center py-4 text-muted">Loading MCP servers...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 2: Audit Log -->
+      <section id="audit-tab" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2>Token Audit Log</h2>
+            <p class="section-desc">Real-time trail of token issuances, authorization code exchanges, and verification rejections.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="refresh-audit-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <div class="table-container glass-card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>Client ID</th>
+                <th>Audience</th>
+                <th>Auth Mode</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body">
+              <tr>
+                <td colspan="6" class="text-center py-4 text-muted">Loading audit events...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: Discovery & Endpoints -->
+      <section id="endpoints-tab" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2>Discovery & Integration Metadata</h2>
+            <p class="section-desc">Public endpoints for LLM dynamic discovery and MCP server signature verification.</p>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <div class="glass-card endpoint-card">
+            <div class="endpoint-header">
+              <span class="http-badge get">GET</span>
+              <span class="endpoint-url">/.well-known/oauth-authorization-server</span>
+            </div>
+            <p class="endpoint-desc">RFC 8414 standard metadata discovery for Claude, Cursor, and compliant OAuth 2.1 clients.</p>
+            <div class="code-box">
+              <pre><code id="metadata-preview">Loading...</code></pre>
+            </div>
+            <a href="/.well-known/oauth-authorization-server" target="_blank" class="btn btn-sm btn-ghost">Open JSON in Browser ↗</a>
+          </div>
+
+          <div class="glass-card endpoint-card">
+            <div class="endpoint-header">
+              <span class="http-badge get">GET</span>
+              <span class="endpoint-url">/.well-known/jwks.json</span>
+            </div>
+            <p class="endpoint-desc">RFC 7517 public RS256 key set used by the MCP drop-in middleware to verify incoming tokens.</p>
+            <div class="code-box">
+              <pre><code id="jwks-preview">Loading...</code></pre>
+            </div>
+            <a href="/.well-known/jwks.json" target="_blank" class="btn btn-sm btn-ghost">Open JWKS in Browser ↗</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: Register New MCP -->
+  <div id="create-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog glass-card">
+      <div class="modal-header">
+        <h3>Register New MCP Server</h3>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <form id="create-mcp-form">
+        <div class="form-group">
+          <label for="new-mcp-name">MCP Server Name</label>
+          <input type="text" id="new-mcp-name" required placeholder="e.g. Invoicing MCP Server">
+          <span class="hint">Human-readable name for identification.</span>
+        </div>
+        <div class="form-group">
+          <label for="new-mcp-audience">Audience Identifier (aud)</label>
+          <input type="text" id="new-mcp-audience" required placeholder="e.g. mcp-invoicing">
+          <span class="hint">Must match the audience claim your MCP middleware checks. Unique per MCP service.</span>
+        </div>
+        <div class="form-group">
+          <label for="new-mcp-redirects">Allowed Redirect URIs (for Mode 1 OAuth clients, comma separated)</label>
+          <input type="text" id="new-mcp-redirects" placeholder="http://127.0.0.1:*, http://localhost:*">
+        </div>
+        <div class="form-group-checkbox">
+          <input type="checkbox" id="new-generate-static" checked>
+          <label for="new-generate-static">Immediately generate Mode 2 static long-lived token (90 days)</label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost modal-cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="create-submit-btn">Register Server</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Reveal Secret & Static Token (ONE TIME WARNING) -->
+  <div id="secret-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog glass-card modal-lg">
+      <div class="modal-header">
+        <div class="header-with-badge">
+          <h3>Credentials Generated</h3>
+          <span class="badge badge-warning">Show Once</span>
+        </div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>Save these credentials now.</strong> The <code>client_secret</code> is stored hashed with bcrypt and will NEVER be shown again.
+          </div>
+        </div>
+
+        <div class="credential-item">
+          <label>Server Name / Audience</label>
+          <div class="credential-val font-mono" id="reveal-audience"></div>
+        </div>
+
+        <div class="credential-item">
+          <label>Public Client ID</label>
+          <div class="copy-input-group">
+            <input type="text" id="reveal-client-id" readonly class="font-mono">
+            <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-client-id">Copy</button>
+          </div>
+        </div>
+
+        <div class="credential-item">
+          <label>Client Secret (Mode 1 OAuth 2.1 / M2M)</label>
+          <div class="copy-input-group">
+            <input type="text" id="reveal-secret" readonly class="font-mono text-warning">
+            <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-secret">Copy Secret</button>
+          </div>
+        </div>
+
+        <div id="reveal-static-token-section" class="credential-item">
+          <label>Mode 2 Static Token (90-day Signed RS256 JWT)</label>
+          <div class="copy-input-group">
+            <textarea id="reveal-static-token" readonly class="font-mono code-textarea" rows="3"></textarea>
+            <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-static-token">Copy Token</button>
+          </div>
+        </div>
+
+        <div class="credential-item">
+          <label>Ready-to-Paste MCP Config JSON (for Claude Desktop / Cursor / Gemini)</label>
+          <div class="config-snippet-box">
+            <pre><code id="reveal-mcp-config" class="font-mono"></code></pre>
+            <button class="btn btn-sm btn-primary copy-btn" data-target="reveal-mcp-config">Copy MCP JSON</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary modal-close-btn">I Have Saved These Credentials</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/admin/app.js"></script>
+</body>
+</html>

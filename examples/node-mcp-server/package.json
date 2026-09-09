@@ -1,0 +1,12 @@
+{
+  "name": "example-mcp-server",
+  "version": "1.0.0",
+  "description": "Example MCP server protected by Central Auth Middleware",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
