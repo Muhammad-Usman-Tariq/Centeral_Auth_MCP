@@ -424,35 +424,34 @@
       <form id="create-mcp-form">
         <div class="form-group">
           <label for="new-mcp-name">MCP Server Name <span class="required">*</span></label>
-          <input type="text" id="new-mcp-name" required placeholder="e.g. Invoicing MCP Server" autocomplete="off">
-          <span class="hint">Human-readable name identifying this service.</span>
+          <input type="text" id="new-mcp-name" required placeholder="e.g. Invoicing MCP" autocomplete="off">
+          <span class="hint">A unique audience identifier and static auth token will be generated automatically.</span>
         </div>
 
-        <div class="form-group">
-          <label for="new-mcp-audience">Audience Identifier (aud) <span class="required">*</span></label>
-          <input type="text" id="new-mcp-audience" required placeholder="e.g. mcp-invoicing" class="font-mono" autocomplete="off">
-          <span class="hint">
-            <strong>Unique token boundary:</strong> Checked by your MCP server middleware. Tokens issued for this audience cannot be accepted by any other MCP server.
-          </span>
-        </div>
+        <details class="advanced-disclosure" id="create-advanced-options">
+          <summary class="advanced-summary">
+            <span class="summary-text">Advanced (custom audience / OAuth redirect URIs)</span>
+            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </summary>
+          <div class="advanced-body">
+            <div class="form-group">
+              <label for="new-mcp-audience">Audience Identifier (aud)</label>
+              <input type="text" id="new-mcp-audience" placeholder="Auto-generated if blank (e.g. mcp-invoicing-a8f3)" class="font-mono" autocomplete="off">
+              <span class="hint">Leave empty to automatically generate a unique, isolated boundary for this MCP server.</span>
+            </div>
 
-        <div class="form-group">
-          <label for="new-mcp-redirects">Allowed Redirect URIs (Mode 1 OAuth Clients)</label>
-          <input type="text" id="new-mcp-redirects" placeholder="http://127.0.0.1:*, http://localhost:*" class="font-mono">
-          <span class="hint">Comma-separated URIs. Localhost ports wildcard supported for desktop agent callbacks.</span>
-        </div>
-
-        <div class="form-group-checkbox">
-          <input type="checkbox" id="new-generate-static" checked>
-          <label for="new-generate-static">
-            <strong>Immediately generate Mode 2 static token</strong> (90-day signed RS256 JWT for header-based LLMs)
-          </label>
-        </div>
+            <div class="form-group">
+              <label for="new-mcp-redirects">Allowed Redirect URIs (Mode 1 OAuth Clients)</label>
+              <input type="text" id="new-mcp-redirects" placeholder="http://127.0.0.1:*, http://localhost:*" class="font-mono">
+              <span class="hint">Comma-separated. Defaults to local desktop OAuth loopbacks if left empty.</span>
+            </div>
+          </div>
+        </details>
 
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost modal-cancel-btn">Cancel</button>
           <button type="submit" class="btn btn-primary" id="create-submit-btn">
-            <span class="btn-text">Register Server</span>
+            <span class="btn-text">Create MCP</span>
             <span class="spinner hidden" id="create-spinner"></span>
           </button>
         </div>
@@ -465,86 +464,112 @@
     <div class="modal-dialog glass-card modal-lg">
       <div class="modal-header">
         <div class="header-with-badge">
-          <div class="modal-icon-sm warning">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div class="modal-icon-sm success">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div>
-            <h3>Credentials Generated</h3>
-            <p class="modal-subtitle">One-Time Secret & MCP Configuration Reveal</p>
+            <h3>MCP Server Protected</h3>
+            <p class="modal-subtitle">One-Time Configuration & Secret Reveal</p>
           </div>
         </div>
         <button class="modal-close-btn" aria-label="Close">&times;</button>
       </div>
 
       <div class="modal-body">
-        <!-- Prominent Warning Box -->
+        <!-- Prominent Warning Box Attached to Whole Panel -->
         <div class="alert alert-warning">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div>
-            <strong>Save these credentials now.</strong> The <code>client_secret</code> is stored hashed with bcrypt and <u>will not be shown again</u>.
+            <strong>Save these credentials now.</strong> This configuration and the secret keys <u>will not be shown again</u>.
           </div>
         </div>
 
-        <div class="grid-2col-tight">
-          <div class="credential-item">
-            <label>Target Audience (JWT aud)</label>
-            <div class="credential-val font-mono" id="reveal-audience"></div>
+        <!-- Primary Prominent .env Snippet Card -->
+        <div class="env-snippet-card">
+          <div class="env-snippet-header">
+            <div class="env-snippet-title-wrap">
+              <span class="env-badge">.env</span>
+              <p class="env-snippet-note">Paste this into your MCP server's <code>.env</code> file — that's it.</p>
+            </div>
+            <button class="btn btn-primary btn-sm copy-btn" data-target="reveal-env-snippet" id="copy-env-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
           </div>
-          <div class="credential-item">
-            <label>Public Client ID</label>
-            <div class="copy-input-group">
-              <input type="text" id="reveal-client-id" readonly class="font-mono">
-              <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-client-id" title="Copy Client ID">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Copy
-              </button>
+          <div class="env-snippet-box">
+            <pre><code id="reveal-env-snippet" class="font-mono"></code></pre>
+          </div>
+        </div>
+
+        <!-- Collapsed Secondary Advanced Details Accordion -->
+        <details class="advanced-disclosure mt-4" id="secret-advanced-details">
+          <summary class="advanced-summary">
+            <span class="summary-text">Advanced details (Client ID, Secret, Full Token, LLM client configs)</span>
+            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </summary>
+          <div class="advanced-body pt-3">
+            <div class="grid-2col-tight">
+              <div class="credential-item">
+                <label>Target Audience (JWT aud)</label>
+                <div class="credential-val font-mono" id="reveal-audience"></div>
+              </div>
+              <div class="credential-item">
+                <label>Public Client ID</label>
+                <div class="copy-input-group">
+                  <input type="text" id="reveal-client-id" readonly class="font-mono">
+                  <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-client-id" title="Copy Client ID">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="credential-item">
+              <label>Client Secret (Mode 1 OAuth 2.1 / M2M)</label>
+              <div class="copy-input-group">
+                <input type="text" id="reveal-secret" readonly class="font-mono text-warning">
+                <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-secret" title="Copy Client Secret">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy Secret
+                </button>
+              </div>
+            </div>
+
+            <div id="reveal-static-token-section" class="credential-item">
+              <div class="label-with-meta">
+                <label>Mode 2 Static Token (90-Day Signed RS256 JWT)</label>
+                <span class="badge badge-pulse">Ready to Paste</span>
+              </div>
+              <div class="copy-input-group">
+                <textarea id="reveal-static-token" readonly class="font-mono code-textarea" rows="2"></textarea>
+                <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-static-token" title="Copy Token">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy Token
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabbed Config Snippet Section -->
+            <div class="config-snippet-section">
+              <div class="config-tabs-header">
+                <label>Ready-to-Paste Client Configuration</label>
+                <div class="snippet-tabs">
+                  <button class="snippet-tab active" data-snippet="claude">Claude Desktop</button>
+                  <button class="snippet-tab" data-snippet="cursor">Cursor IDE</button>
+                  <button class="snippet-tab" data-snippet="curl">cURL Header</button>
+                </div>
+              </div>
+              <div class="config-snippet-box">
+                <pre><code id="reveal-mcp-config" class="font-mono"></code></pre>
+                <button class="btn btn-sm btn-secondary copy-btn" data-target="reveal-mcp-config">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy Configuration
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div class="credential-item">
-          <label>Client Secret (Mode 1 OAuth 2.1 / M2M)</label>
-          <div class="copy-input-group">
-            <input type="text" id="reveal-secret" readonly class="font-mono text-warning">
-            <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-secret" title="Copy Client Secret">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy Secret
-            </button>
-          </div>
-        </div>
-
-        <div id="reveal-static-token-section" class="credential-item">
-          <div class="label-with-meta">
-            <label>Mode 2 Static Token (90-Day Signed RS256 JWT)</label>
-            <span class="badge badge-pulse">Ready to Paste</span>
-          </div>
-          <div class="copy-input-group">
-            <textarea id="reveal-static-token" readonly class="font-mono code-textarea" rows="2"></textarea>
-            <button class="btn btn-secondary btn-sm copy-btn" data-target="reveal-static-token" title="Copy Token">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy Token
-            </button>
-          </div>
-        </div>
-
-        <!-- Tabbed Config Snippet Section -->
-        <div class="config-snippet-section">
-          <div class="config-tabs-header">
-            <label>Ready-to-Paste Client Configuration</label>
-            <div class="snippet-tabs">
-              <button class="snippet-tab active" data-snippet="claude">Claude Desktop</button>
-              <button class="snippet-tab" data-snippet="cursor">Cursor IDE</button>
-              <button class="snippet-tab" data-snippet="curl">cURL Header</button>
-            </div>
-          </div>
-          <div class="config-snippet-box">
-            <pre><code id="reveal-mcp-config" class="font-mono"></code></pre>
-            <button class="btn btn-sm btn-primary copy-btn" data-target="reveal-mcp-config">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy Configuration
-            </button>
-          </div>
-        </div>
+        </details>
       </div>
 
       <div class="modal-footer">

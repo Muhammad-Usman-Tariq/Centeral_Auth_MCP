@@ -22,6 +22,7 @@ import secrets
 import threading
 import urllib.parse
 from pathlib import Path
+import re
 import requests
 import uvicorn
 from fastapi import FastAPI
@@ -122,7 +123,53 @@ def test_suite():
         assert bool(test_client_id)
         assert bool(test_client_secret)
         assert bool(static_token)
-        print("  \033[32m[PASS]\033[0m Client registered, secret revealed ONCE, static token generated")
+        assert "envSnippet" in create_data
+        assert f"JWKS_URI={settings.clean_issuer_url}/.well-known/jwks.json" in create_data["envSnippet"]
+        assert f"MCP_AUDIENCE={test_audience}" in create_data["envSnippet"]
+        assert f"MCP_AUTH_TOKEN={static_token}" in create_data["envSnippet"]
+        print("  \033[32m[PASS]\033[0m Client registered, secret revealed ONCE, static token generated, envSnippet present")
+
+        # -------------------------------------------------------------
+        print("\n\033[36m[TEST 2B] One-Field Simplified Registration Flow (Auto-Audience & envSnippet)\033[0m")
+        # -------------------------------------------------------------
+        # Only provide 'name' — audience and redirect URIs should be auto-generated
+        simple_res1 = session.post(
+            f"{base_url}/admin/api/clients",
+            json={"name": "Invoicing MCP"},
+            headers=admin_headers
+        )
+        assert simple_res1.status_code == 201, f"Simple create 1 failed: {simple_res1.text}"
+        simple_data1 = simple_res1.json()
+        assert simple_data1["success"] is True
+
+        aud1 = simple_data1["client"]["audience"]
+        assert re.match(r"^mcp-invoicing-[0-9a-f]{4,6}$", aud1), f"Unexpected audience format: {aud1}"
+        assert "http://127.0.0.1:*" in simple_data1["client"]["allowed_redirect_uris"]
+        assert "http://localhost:*" in simple_data1["client"]["allowed_redirect_uris"]
+        assert bool(simple_data1["staticToken"]["token"])
+
+        # Validate envSnippet format and content
+        snippet1 = simple_data1["envSnippet"]
+        expected_snippet1 = (
+            f"JWKS_URI={settings.clean_issuer_url}/.well-known/jwks.json\n"
+            f"MCP_AUDIENCE={aud1}\n"
+            f"MCP_AUTH_TOKEN={simple_data1['staticToken']['token']}"
+        )
+        assert snippet1 == expected_snippet1, f"Snippet mismatch: {snippet1} != {expected_snippet1}"
+
+        # Register second client with identical name to verify unique random suffix guarantee
+        simple_res2 = session.post(
+            f"{base_url}/admin/api/clients",
+            json={"name": "Invoicing MCP"},
+            headers=admin_headers
+        )
+        assert simple_res2.status_code == 201
+        simple_data2 = simple_res2.json()
+        aud2 = simple_data2["client"]["audience"]
+        assert aud1 != aud2, f"Audiences must be unique! Got {aud1} and {aud2}"
+        assert re.match(r"^mcp-invoicing-[0-9a-f]{4,6}$", aud2)
+
+        print(f"  \033[32m[PASS]\033[0m One-field creation generated unique audiences ({aud1}, {aud2}) and valid envSnippet")
 
         # -------------------------------------------------------------
         print("\n\033[36m[TEST 3] Mode 1: Dynamic Client Registration (RFC 7591)\033[0m")

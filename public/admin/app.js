@@ -90,6 +90,7 @@ const detailEventsCount = document.getElementById('detail-events-count');
 const detailAuditBody = document.getElementById('detail-audit-body');
 
 // Secret Reveal Elements
+const revealEnvSnippet = document.getElementById('reveal-env-snippet');
 const revealAudience = document.getElementById('reveal-audience');
 const revealClientId = document.getElementById('reveal-client-id');
 const revealSecret = document.getElementById('reveal-secret');
@@ -912,7 +913,8 @@ document.querySelectorAll('.modal-close-btn, .modal-cancel-btn').forEach(btn => 
 document.querySelectorAll('.open-create-modal-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     createMcpForm.reset();
-    document.getElementById('new-generate-static').checked = true;
+    const adv = document.getElementById('create-advanced-options');
+    if (adv) adv.open = false;
     openModal(createModal);
     document.getElementById('new-mcp-name').focus();
   });
@@ -923,13 +925,18 @@ createMcpForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const name = document.getElementById('new-mcp-name').value.trim();
-  const audience = document.getElementById('new-mcp-audience').value.trim();
-  const redirectsRaw = document.getElementById('new-mcp-redirects').value.trim();
-  const generateStatic = document.getElementById('new-generate-static').checked;
+  const audienceEl = document.getElementById('new-mcp-audience');
+  const audience = audienceEl ? audienceEl.value.trim() : '';
+  const redirectsEl = document.getElementById('new-mcp-redirects');
+  const redirectsRaw = redirectsEl ? redirectsEl.value.trim() : '';
 
   const redirect_uris = redirectsRaw
     ? redirectsRaw.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
+    : undefined;
+
+  const payload = { name };
+  if (audience) payload.audience = audience;
+  if (redirect_uris && redirect_uris.length > 0) payload.redirect_uris = redirect_uris;
 
   createSubmitBtn.disabled = true;
   createSpinner.classList.remove('hidden');
@@ -937,16 +944,11 @@ createMcpForm.addEventListener('submit', async (e) => {
   try {
     const res = await apiFetch('/admin/api/clients', {
       method: 'POST',
-      body: JSON.stringify({
-        name,
-        audience,
-        redirect_uris,
-        generate_static_token: generateStatic
-      })
+      body: JSON.stringify(payload)
     });
 
     closeModal(createModal);
-    showToast(`MCP server "${name}" registered successfully!`);
+    showToast(`MCP server "${name}" protected successfully!`);
 
     // Display One-Time Secret Reveal Modal
     state.currentGeneratedCreds = res;
@@ -970,6 +972,15 @@ function displaySecretRevealModal(data) {
   const secret = data.clientSecret || '';
   const staticTokenObj = data.staticToken;
   const staticToken = staticTokenObj?.token || '';
+  const envSnippet = data.envSnippet || '';
+
+  if (revealEnvSnippet) {
+    revealEnvSnippet.textContent = envSnippet;
+  }
+
+  // Ensure advanced details starts closed
+  const secretAdv = document.getElementById('secret-advanced-details');
+  if (secretAdv) secretAdv.open = false;
 
   revealAudience.innerText = client.audience || '—';
   revealClientId.value = client.client_id || '—';

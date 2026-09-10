@@ -1,7 +1,9 @@
+import re
+import secrets
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 import bcrypt
 from src_py.config import settings
 from src_py.db import models
@@ -20,10 +22,19 @@ class AdminLoginRequest(BaseModel):
 
 class CreateClientRequest(BaseModel):
     name: str
-    audience: str
-    allowedRedirectUris: Optional[List[str]] = []
-    generateStaticToken: bool = True
-    staticTokenDays: int = 90
+    audience: Optional[str] = None
+    allowedRedirectUris: Optional[List[str]] = Field(
+        default=None,
+        validation_alias=AliasChoices("allowedRedirectUris", "allowed_redirect_uris", "redirect_uris")
+    )
+    generateStaticToken: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("generateStaticToken", "generate_static_token")
+    )
+    staticTokenDays: int = Field(
+        default=90,
+        validation_alias=AliasChoices("staticTokenDays", "static_token_days")
+    )
 
 
 class StaticTokenRequest(BaseModel):
@@ -121,35 +132,69 @@ async def create_mcp_client(
     """Register a new MCP client via Admin panel."""
     client_ip = req.client.host if req.client else "unknown"
 
-    if not body.name or not body.audience:
+    if not body.name or not body.name.strip():
         return JSONResponse(
             status_code=400,
-            content={"success": False, "message": "MCP name and audience are required"}
+            content={"success": False, "message": "MCP name is required"}
         )
+
+    # 1. Determine audience: auto-generate if omitted/empty
+    if body.audience and body.audience.strip():
+        audience = body.audience.strip()
+    else:
+        # Auto-generate: lowercase, replace spaces/special characters with hyphens,
+        # prefix with "mcp-", and append a short random suffix (4 hex characters)
+        # Example: name="Invoicing MCP" -> audience="mcp-invoicing-a8f3"
+        sanitized = re.sub(r"[^a-z0-9]+", "-", body.name.lower()).strip("-")
+        sanitized = re.sub(r"^mcp-", "", sanitized)
+        sanitized = re.sub(r"-mcp$", "", sanitized).strip("-")
+        if not sanitized:
+            sanitized = "server"
+        for _ in range(5):
+            rand_suffix = secrets.token_hex(2)
+            candidate_audience = f"mcp-{sanitized}-{rand_suffix}"
+            if not models.get_client_by_audience(candidate_audience):
+                audience = candidate_audience
+                break
+        else:
+            audience = f"mcp-{sanitized}-{secrets.token_hex(3)}"
+
+    # 2. Determine redirect URIs: default to local/dev OAuth testing defaults if omitted
+    redirect_uris = body.allowedRedirectUris
+    if not redirect_uris:
+        redirect_uris = ["http://127.0.0.1:*", "http://localhost:*"]
 
     try:
         reg_result = client_service.register_client(
-            name=body.name,
-            audience=body.audience,
-            allowed_redirect_uris=body.allowedRedirectUris,
+            name=body.name.strip(),
+            audience=audience,
+            allowed_redirect_uris=redirect_uris,
             client_type="confidential",
             ip_address=client_ip
         )
         client = reg_result["client"]
 
-        static_token_data = None
-        if body.generateStaticToken:
-            static_token_data = client_service.generate_static_token_for_client(
-                client_id=client["client_id"],
-                days=body.staticTokenDays,
-                ip_address=client_ip
-            )
+        # 3. Always auto-generate Mode 2 static token on creation
+        static_token_days = body.staticTokenDays if body.staticTokenDays and body.staticTokenDays > 0 else 90
+        static_token_data = client_service.generate_static_token_for_client(
+            client_id=client["client_id"],
+            days=static_token_days,
+            ip_address=client_ip
+        )
+
+        # 4. Computed ready-to-paste .env snippet
+        env_snippet = (
+            f"JWKS_URI={settings.clean_issuer_url}/.well-known/jwks.json\n"
+            f"MCP_AUDIENCE={client['audience']}\n"
+            f"MCP_AUTH_TOKEN={static_token_data['token']}"
+        )
 
         return {
             "success": True,
             "client": client,
             "clientSecret": reg_result["clientSecret"],  # Revealed ONCE
-            "staticToken": static_token_data
+            "staticToken": static_token_data,
+            "envSnippet": env_snippet
         }
     except ValueError as e:
         return JSONResponse(
