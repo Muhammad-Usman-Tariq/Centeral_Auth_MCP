@@ -91,7 +91,7 @@ def get_client_by_client_id(client_id: str) -> Optional[Dict[str, Any]]:
     supabase = get_supabase_client()
     if supabase:
         res = supabase.table("mcp_clients").select("*").eq("client_id", client_id).maybe_single().execute()
-        return _format_client(res.data) if res.data else None
+        return _format_client(res.data) if res and res.data else None
 
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
@@ -104,7 +104,7 @@ def get_client_by_id(id: str) -> Optional[Dict[str, Any]]:
     supabase = get_supabase_client()
     if supabase:
         res = supabase.table("mcp_clients").select("*").eq("id", id).maybe_single().execute()
-        return _format_client(res.data) if res.data else None
+        return _format_client(res.data) if res and res.data else None
 
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
@@ -117,7 +117,7 @@ def get_client_by_audience(audience: str) -> Optional[Dict[str, Any]]:
     supabase = get_supabase_client()
     if supabase:
         res = supabase.table("mcp_clients").select("*").eq("audience", audience).maybe_single().execute()
-        return _format_client(res.data) if res.data else None
+        return _format_client(res.data) if res and res.data else None
 
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
@@ -207,7 +207,7 @@ def get_auth_code(code: str) -> Optional[Dict[str, Any]]:
     supabase = get_supabase_client()
     if supabase:
         res = supabase.table("auth_codes").select("*").eq("code", code).maybe_single().execute()
-        if not res.data:
+        if not res or not res.data:
             return None
         d = dict(res.data)
         d["used"] = bool(d.get("used", False))
@@ -262,7 +262,7 @@ def is_token_jti_revoked(jti: str) -> bool:
     supabase = get_supabase_client()
     if supabase:
         res = supabase.table("revoked_tokens").select("jti").eq("jti", jti).maybe_single().execute()
-        return bool(res.data)
+        return bool(res and res.data)
 
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
@@ -350,7 +350,7 @@ def get_admin_by_username(username: str) -> Optional[Dict[str, Any]]:
     supabase = get_supabase_client()
     if supabase:
         res = supabase.table("admin_users").select("*").eq("username", username).maybe_single().execute()
-        return res.data if res.data else None
+        return res.data if res and res.data else None
 
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
