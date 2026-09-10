@@ -29,3 +29,6 @@ data/*.sqlite3
 Thumbs.db
 npm-debug.log*
 *.log
+
+# Design Reference
+design-reference/
