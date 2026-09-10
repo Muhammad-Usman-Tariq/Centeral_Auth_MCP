@@ -1,10 +1,31 @@
+# Dependencies & Environments
 node_modules/
+.venv/
+venv/
+ENV/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Keys & Secrets
 .keys/
 *.pem
+.env
+.env.*
+!.env.example
+
+# Local databases
 data/*.db
 data/*.sqlite
 data/*.sqlite3
-.env
+*.db
+*.db-journal
+
+# OS & Logs
 .DS_Store
 Thumbs.db
 npm-debug.log*
+*.log
