@@ -218,3 +218,310 @@ uv pip install -r requirements.txt
 .venv\Scripts\uvicorn src_py.main:app --port 3000 --reload
 ```
 Open `http://localhost:3000/admin` to access the Control Center.
+
+---
+
+## Docker Deployment
+
+The Central Auth Server includes a multi-stage production Dockerfile (`python:3.12-slim`) and a `docker-compose.yml` for containerized hosting.
+
+### 1. Environment Configuration
+Create your `.env` file from the example template:
+```bash
+cp .env.example .env
+```
+Ensure the following variables are configured:
+- `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase project credentials.
+- `ADMIN_PASSWORD` & `ADMIN_JWT_SECRET`: Strong secret credentials for operator console sessions.
+- `REQUIRE_HTTPS=true`: Mandatory for production deployments.
+- `PORT=8000`: Container application port.
+- `WEB_CONCURRENCY=4`: Number of uvicorn worker processes (defaults to `2`).
+
+### 2. Run with Docker Compose (Recommended)
+`docker-compose.yml` automatically mounts a persistent named volume for the `.keys/` directory.
+
+> [!IMPORTANT]
+> **RSA Keypair Volume Persistence**: The `.keys/` directory holds the 2048-bit RSA private and public keypair. Persisting this directory via the `mcp_keys` Docker volume ensures that your server's keypair remains constant across container restarts and redeployments. Regenerating keys on restart would immediately invalidate all issued 90-day static tokens and active JWTs.
+
+Start the service in the background:
+```bash
+docker compose up -d --build
+```
+Check health and logs:
+```bash
+docker compose ps
+docker compose logs -f central-auth-mcp
+```
+To stop the service:
+```bash
+docker compose down
+```
+
+### 3. Build & Run Manually with Docker CLI
+If you prefer running without compose:
+```bash
+# 1. Create a dedicated named volume for RSA keys
+docker volume create central_auth_keys
+
+# 2. Build the production image
+docker build -t central-auth-mcp:latest .
+
+# 3. Run container as non-root user with persistent volume
+docker run -d \
+  --name central-auth-mcp \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  --env-file .env \
+  -v central_auth_keys:/app/.keys \
+  central-auth-mcp:latest
+```
+
+---
+
+## Production VPS Deployment (non-Docker)
+
+For standard Linux VPS hosting (Ubuntu / Debian / RHEL), run the server as a system service managed by `systemd` to provide automatic recovery on crash or reboot.
+
+### 1. Install & Configure Application
+```bash
+# 1. Create a dedicated system user
+sudo useradd -r -s /bin/false -d /opt/central-auth-mcp mcpuser
+
+# 2. Clone and set up repository in /opt
+sudo git clone <REPO_URL> /opt/central-auth-mcp
+cd /opt/central-auth-mcp
+
+# 3. Create virtual environment and install dependencies
+sudo python3 -m venv .venv
+sudo /opt/central-auth-mcp/.venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# 4. Configure production environment
+sudo cp .env.example .env
+sudo nano .env # Set REQUIRE_HTTPS=true, Supabase credentials, strong passwords
+
+# 5. Set directory ownership and key permissions
+sudo chown -R mcpuser:mcpuser /opt/central-auth-mcp
+sudo chmod 700 /opt/central-auth-mcp/.keys
+```
+
+### 2. Systemd Service Unit File
+Create `/etc/systemd/system/central-auth-mcp.service`:
+```ini
+[Unit]
+Description=Central Authentication Server for MCP (FastAPI + Supabase)
+After=network.target
+
+[Service]
+Type=simple
+User=mcpuser
+Group=mcpuser
+WorkingDirectory=/opt/central-auth-mcp
+EnvironmentFile=/opt/central-auth-mcp/.env
+ExecStart=/opt/central-auth-mcp/.venv/bin/uvicorn src_py.main:app --host 127.0.0.1 --port 8000 --workers 4
+Restart=always
+RestartSec=3s
+KillMode=process
+
+# Security sandboxing
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3. Enable and Start Service
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable central-auth-mcp
+sudo systemctl start central-auth-mcp
+
+# Verify service status
+sudo systemctl status central-auth-mcp
+```
+
+---
+
+## Reverse Proxy & HTTPS
+
+In production, terminate TLS using an Nginx reverse proxy running on the host. Nginx handles SSL/TLS termination and proxies HTTP requests to Uvicorn on `127.0.0.1:8000`.
+
+### 1. Nginx Configuration
+Create `/etc/nginx/sites-available/central-auth-mcp`:
+
+```nginx
+# HTTP - Redirect all traffic to HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name auth.example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS - Terminate TLS and proxy to FastAPI Uvicorn
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name auth.example.com;
+
+    # SSL Certificates (managed by Certbot)
+    ssl_certificate /etc/letsencrypt/live/auth.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/auth.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # Security Headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+
+    # Proxy to Central Auth Uvicorn process
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+
+        # CRITICAL HEADERS:
+        # The central auth server reads X-Forwarded-Proto to enforce HTTPS
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+    }
+}
+```
+
+Enable site configuration:
+```bash
+sudo ln -s /etc/nginx/sites-available/central-auth-mcp /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 2. Obtain Free SSL Certificate via Let's Encrypt (Certbot)
+```bash
+sudo apt update
+sudo apt install -y certbot python3-certbot-nginx
+
+# Obtain certificate and let Certbot configure Nginx automatically
+sudo certbot --nginx -d auth.example.com
+
+# Verify auto-renewal timer
+sudo systemctl status certbot.timer
+sudo certbot renew --dry-run
+```
+
+---
+
+## OAuth 2.1 Flow — Verified
+
+The full OAuth 2.1 PKCE authorization code flow has been verified end-to-end against the live server. You can mirror the automated test manually using `curl`:
+
+### Step 1: Dynamic Client Registration (RFC 7591)
+Register your client dynamically to receive a `client_id` and `client_secret`:
+```bash
+curl -X POST https://auth.example.com/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "Claude Desktop Agent",
+    "redirect_uris": ["http://localhost:8080/callback"],
+    "audience": "mcp-filesystem"
+  }'
+```
+*Output:*
+```json
+{
+  "client_id": "mcp_claude-desktop_a1b2c3d4",
+  "client_secret": "mcp_sec_...",
+  "audience": "mcp-filesystem",
+  "redirect_uris": ["http://localhost:8080/callback"],
+  "grant_types": ["authorization_code", "client_credentials"]
+}
+```
+
+### Step 2: Generate PKCE S256 Code Verifier & Challenge
+In Bash, generate a random 43-128 character verifier and its S256 SHA-256 base64url challenge:
+```bash
+# Generate 64-byte random verifier
+VERIFIER=$(openssl rand -base64 48 | tr -d '=+/' | cut -c1-64)
+
+# Compute S256 challenge: Base64URL(SHA256(verifier)) without padding
+CHALLENGE=$(printf %s "$VERIFIER" | openssl dgst -sha256 -binary | openssl base64 -e | tr '+/' '-_' | tr -d '=')
+
+echo "Verifier:  $VERIFIER"
+echo "Challenge: $CHALLENGE"
+```
+
+### Step 3: Authorization Request (`/authorize`)
+Send the user or agent browser to the authorization endpoint:
+```bash
+curl -i -G "https://auth.example.com/authorize" \
+  --data-urlencode "response_type=code" \
+  --data-urlencode "client_id=mcp_claude-desktop_a1b2c3d4" \
+  --data-urlencode "redirect_uri=http://localhost:8080/callback" \
+  --data-urlencode "code_challenge=$CHALLENGE" \
+  --data-urlencode "code_challenge_method=S256" \
+  --data-urlencode "state=secure_random_state_123"
+```
+*Response:* Returns HTTP `302 Found` with redirect target containing the single-use authorization code:
+```http
+HTTP/2 302
+Location: http://localhost:8080/callback?code=ac_8f9a2b4c6e1d&state=secure_random_state_123
+```
+
+### Step 4: Token Exchange (`/token`)
+Exchange the authorization code for an RS256 Bearer JWT by providing the original `code_verifier`:
+```bash
+curl -X POST https://auth.example.com/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "authorization_code",
+    "code": "ac_8f9a2b4c6e1d",
+    "redirect_uri": "http://localhost:8080/callback",
+    "code_verifier": "'"$VERIFIER"'",
+    "client_id": "mcp_claude-desktop_a1b2c3d4",
+    "client_secret": "mcp_sec_..."
+  }'
+```
+*Response:*
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6Im1jcC1hdXRoLTIwMjYtMDEiLCJ0eXAiOiJKV1QifQ...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "mcp:all"
+}
+```
+
+### Step 5: Verify Token Signature Locally via JWKS
+Any MCP server can immediately verify the token offline using the public RS256 key:
+```bash
+curl https://auth.example.com/.well-known/jwks.json
+```
+
+---
+
+## Production Checklist
+
+Before exposing the Central Auth Server to production traffic, verify each item:
+
+- [ ] **`REQUIRE_HTTPS=true` in `.env`**: Enforces HTTPS and rejects unencrypted connections.
+- [ ] **`ADMIN_PASSWORD` updated**: Changed from `admin-mcp-secret-2026` to a high-entropy passphrase.
+- [ ] **`ADMIN_JWT_SECRET` updated**: Changed from default string to a 32+ character random secret.
+- [ ] **`.keys/` directory backed up & persisted**: Mounted to a persistent Docker named volume or stored outside disposable deploy paths on VPS.
+- [ ] **Supabase `service_role` key protected**: Stored strictly in server `.env`, never committed to Git, never exposed to clients.
+- [ ] **Rate limiting configured**: Verified `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX_REQUESTS` match expected traffic capacity.
+- [ ] **Auto-restart confirmed**: `systemd` service (`Restart=always`) or Docker container restart policy (`restart: unless-stopped`) active and tested across system reboots.
+- [ ] **Healthcheck monitored**: `/health` endpoint responding with `{"status": "ok"}` and integrated into external uptime monitors.

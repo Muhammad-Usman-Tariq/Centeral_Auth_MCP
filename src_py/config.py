@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     port: int = 3000
     issuer_url: str = "http://localhost:3000"
     node_env: str = "development"
-    require_https: bool = False
+    require_https: bool = True
 
     # Supabase Configuration
     supabase_url: Optional[str] = None

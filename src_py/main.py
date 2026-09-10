@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
     print(f"[Server] Discovery:  {settings.clean_issuer_url}/.well-known/oauth-authorization-server")
     print(f"[Server] JWKS:       {settings.clean_issuer_url}/.well-known/jwks.json")
     print(f"[Server] Admin UI:   {settings.clean_issuer_url}/admin")
+    if not settings.require_https:
+        print("[SECURITY WARNING] REQUIRE_HTTPS is False — do not use this configuration in production.")
     print("---------------------------------------------------------")
     yield
     # Shutdown logic if any
@@ -49,7 +51,9 @@ app.add_middleware(
 @app.middleware("http")
 async def enforce_https(request: Request, call_next):
     if settings.require_https:
-        proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        # Check X-Forwarded-Proto header (handles proxies like Nginx, comma-separated, case-insensitive)
+        fwd_proto = request.headers.get("x-forwarded-proto", "")
+        proto = fwd_proto.split(",")[0].strip().lower() if fwd_proto else request.url.scheme
         if proto != "https":
             if request.method in ["GET", "HEAD"]:
                 url = request.url.replace(scheme="https")

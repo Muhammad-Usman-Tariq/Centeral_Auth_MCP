@@ -76,14 +76,55 @@ def create_authorization_code(
     return code
 
 
+class ClientAuthenticationError(Exception):
+    """Raised when client authentication fails (invalid client_secret or missing for confidential client)."""
+    pass
+
+
 def exchange_authorization_code(
     code: str,
     client_id: str,
     redirect_uri: str,
     code_verifier: str,
+    client_secret: Optional[str] = None,
     ip_address: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Exchanges an authorization code for an RS256 access token with PKCE verification."""
+    """Exchanges an authorization code for an RS256 access token with PKCE verification and client authentication."""
+    # 1. Validate client identity
+    client = models.get_client_by_client_id(client_id)
+    if not client:
+        models.add_token_event(
+            event_type="failed",
+            client_id=client_id,
+            mode="oauth2_code",
+            details="Unknown client_id",
+            ip_address=ip_address
+        )
+        raise ClientAuthenticationError("Unknown client_id")
+
+    if client.get("revoked"):
+        models.add_token_event(
+            event_type="failed",
+            client_id=client_id,
+            mode="oauth2_code",
+            details="Client has been revoked",
+            ip_address=ip_address
+        )
+        raise ValueError("Client has been revoked")
+
+    # 2. Client authentication (when client_secret is provided)
+    if client_secret is not None:
+        if not client_service.authenticate_client(client_id, client_secret):
+            models.add_token_event(
+                event_type="failed",
+                client_id=client_id,
+                mode="oauth2_code",
+                details="Client authentication failed (invalid client_secret)",
+                ip_address=ip_address
+            )
+            raise ClientAuthenticationError("Client authentication failed")
+
+    # 3. Retrieve and validate authorization code
     auth_code = models.get_auth_code(code)
     if not auth_code:
         models.add_token_event(
@@ -136,7 +177,7 @@ def exchange_authorization_code(
         )
         raise ValueError("Redirect URI mismatch")
 
-    # Verify PKCE S256
+    # 4. Verify PKCE S256
     if not verify_pkce_challenge(code_verifier, auth_code.get("code_challenge", ""), auth_code.get("code_challenge_method", "S256")):
         models.add_token_event(
             event_type="failed",
@@ -147,19 +188,7 @@ def exchange_authorization_code(
         )
         raise ValueError("Invalid code_verifier for PKCE challenge")
 
-    # Check client revocation
-    client = models.get_client_by_client_id(client_id)
-    if not client or client.get("revoked"):
-        models.add_token_event(
-            event_type="failed",
-            client_id=client_id,
-            mode="oauth2_code",
-            details="Client has been revoked or does not exist",
-            ip_address=ip_address
-        )
-        raise ValueError("Client has been revoked or does not exist")
-
-    # Mark used immediately
+    # 5. Mark code as used immediately (single-use enforcement)
     models.mark_auth_code_used(code)
 
     # Issue RS256 token

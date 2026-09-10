@@ -143,24 +143,23 @@ async def authorize(
         )
 
     allowed_uris = client.get("allowed_redirect_uris") or []
-    if allowed_uris:
-        is_allowed = False
-        for uri in allowed_uris:
-            if uri == redirect_uri:
+    is_allowed = False
+    for uri in allowed_uris:
+        if uri == redirect_uri:
+            is_allowed = True
+            break
+        if redirect_uri.startswith("http://127.0.0.1:") or redirect_uri.startswith("http://localhost:"):
+            if uri.startswith("http://127.0.0.1") or uri.startswith("http://localhost"):
                 is_allowed = True
                 break
-            if redirect_uri.startswith("http://127.0.0.1:") or redirect_uri.startswith("http://localhost:"):
-                if uri.startswith("http://127.0.0.1") or uri.startswith("http://localhost"):
-                    is_allowed = True
-                    break
-        if not is_allowed:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "error": "invalid_request",
-                    "error_description": "redirect_uri is not whitelisted for this client"
-                }
-            )
+    if not is_allowed:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "invalid_request",
+                "error_description": "redirect_uri is not whitelisted for this client"
+            }
+        )
 
     # 4. Validate PKCE (Mandatory in OAuth 2.1)
     if not code_challenge:
@@ -294,9 +293,15 @@ async def token(req: Request, response: Response):
                 client_id=client_id,
                 redirect_uri=redirect_uri,
                 code_verifier=code_verifier,
+                client_secret=client_secret,
                 ip_address=client_ip
             )
             return result
+        except oauth_service.ClientAuthenticationError as e:
+            return JSONResponse(
+                status_code=401,
+                content={"error": "invalid_client", "error_description": str(e)}
+            )
         except ValueError as e:
             return JSONResponse(
                 status_code=400,
