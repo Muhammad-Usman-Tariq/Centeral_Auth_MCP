@@ -34,6 +34,7 @@ const statTotalClients = document.getElementById('stat-total-clients');
 const statActiveClients = document.getElementById('stat-active-clients');
 const statRevokedClients = document.getElementById('stat-revoked-clients');
 const statTotalEvents = document.getElementById('stat-total-events');
+const statOperationalRate = document.getElementById('stat-operational-rate');
 
 // Tab Navigation
 const navTabs = document.querySelectorAll('.nav-tab');
@@ -341,15 +342,29 @@ async function loadDashboardData() {
   ]);
 }
 
+function updateOperationalRate(total, active) {
+  if (statOperationalRate) {
+    if (total > 0) {
+      const rate = ((active / total) * 100).toFixed(1);
+      statOperationalRate.innerText = `${rate}% operational rate`;
+    } else {
+      statOperationalRate.innerText = '100% operational rate';
+    }
+  }
+}
+
 // 1. Stats
 async function loadStats() {
   try {
     const data = await apiFetch('/admin/api/stats');
     if (data.stats) {
-      statTotalClients.innerText = data.stats.totalClients ?? 0;
-      statActiveClients.innerText = data.stats.activeClients ?? 0;
+      const total = data.stats.totalClients ?? 0;
+      const active = data.stats.activeClients ?? 0;
+      statTotalClients.innerText = total;
+      statActiveClients.innerText = active;
       statRevokedClients.innerText = data.stats.revokedClients ?? 0;
       statTotalEvents.innerText = data.stats.totalEvents ?? 0;
+      updateOperationalRate(total, active);
     }
   } catch (err) {
     console.error('Failed to load stats:', err);
@@ -383,6 +398,7 @@ function updateClientCounts() {
   statTotalClients.innerText = total;
   statActiveClients.innerText = active;
   statRevokedClients.innerText = revoked;
+  updateOperationalRate(total, active);
 }
 
 function renderClientsTable() {
