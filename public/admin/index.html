@@ -6,7 +6,8 @@
   <title>Central Auth for MCP - Control Center</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <link rel="stylesheet" href="/admin/style.css">
 </head>
 <body>
@@ -20,12 +21,8 @@
   <div id="login-view" class="view-container">
     <div class="login-card glass-card">
       <div class="brand-header">
-        <div class="brand-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="M12 8v4"/>
-            <path d="M12 16h.01"/>
-          </svg>
+        <div class="brand-icon" style="background: transparent; box-shadow: none;">
+          <img src="/admin/logo.svg" alt="Central Auth MCP Logo" width="48" height="48" style="display: block;">
         </div>
         <h1>Central Auth Server</h1>
         <p class="subtitle">Unified OAuth 2.1 & Static Token Hub for MCP</p>
@@ -69,10 +66,8 @@
     <!-- Top Navigation Bar -->
     <header class="top-nav glass-panel">
       <div class="nav-brand">
-        <div class="brand-icon-sm">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
+        <div class="brand-icon-sm" style="background: transparent; box-shadow: none;">
+          <img src="/admin/logo.svg" alt="Central Auth MCP Logo" width="28" height="28" style="display: block;">
         </div>
         <div class="nav-title">
           <span class="app-title">Central Auth MCP</span>
@@ -119,127 +114,294 @@
 
       <!-- VIEW 2: DASHBOARD (OVERVIEW) -->
       <section id="overview-tab" class="tab-pane active">
-        <!-- System Status Bar -->
-        <div class="system-status-bar glass-card">
-          <div class="status-item">
-            <span class="status-dot green"></span>
-            <span class="status-label">Algorithm:</span>
-            <span class="status-value font-mono">RS256 (2048-bit RSA)</span>
+        <!-- Top Header Section matching Stitch reference -->
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
+          <div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--secondary); display: inline-block;"></span>
+              <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--secondary); letter-spacing: 0.05em;">Cluster Telemetry Node 01</span>
+            </div>
+            <h1 style="font-size: 26px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em;">Dashboard Overview</h1>
+            <p style="font-size: 14px; color: var(--text-secondary);">Manage and monitor Model Context Protocol auth credentials &amp; real-time telemetry.</p>
           </div>
-          <div class="status-divider"></div>
-          <div class="status-item">
-            <span class="status-dot green"></span>
-            <span class="status-label">OAuth 2.1 Spec:</span>
-            <span class="status-value font-mono">PKCE S256 (Enforced)</span>
-          </div>
-          <div class="status-divider"></div>
-          <div class="status-item">
-            <span class="status-dot blue"></span>
-            <span class="status-label">Database Backend:</span>
-            <span class="status-value font-mono">Postgres (Supabase) / WAL</span>
-          </div>
-          <div class="status-divider"></div>
-          <div class="status-item">
-            <span class="status-dot purple"></span>
-            <span class="status-label">Auth Modes:</span>
-            <span class="status-value">OAuth 2.1 + Static Fallback</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="btn btn-secondary view-all-audit-btn" style="background: var(--surface-container-low); border: 1px solid var(--border-subtle); color: var(--text-primary);">
+              <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">receipt_long</span>
+              <span>Audit Scope</span>
+            </button>
+            <button type="button" class="btn btn-primary open-create-modal-btn">
+              <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add_circle</span>
+              <span>+ Register MCP</span>
+            </button>
           </div>
         </div>
 
-        <!-- Metric Stat Cards -->
+        <!-- 4 Top Stat Cards (matching inspiration style) -->
         <div class="stats-grid">
-          <div class="stat-card glass-card">
+          <!-- Stat 1: Total Servers -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon stat-blue">
+                <span class="material-symbols-outlined" style="font-size: 22px;">dns</span>
+              </div>
+              <span class="stat-pill stat-pill-blue">+7.8%</span>
+            </div>
             <div class="stat-meta">
               <span class="stat-label">Total MCP Servers</span>
               <span class="stat-value" id="stat-total-clients">0</span>
-              <span class="stat-subtext">Registered endpoints</span>
             </div>
-            <div class="stat-icon stat-blue">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <div class="stat-card-footer">
+              <span class="material-symbols-outlined" style="font-size: 14px; color: var(--secondary);">trending_up</span>
+              <span>+3 added this week</span>
             </div>
           </div>
 
-          <div class="stat-card glass-card">
+          <!-- Stat 2: Active Authorized -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon stat-green">
+                <span class="material-symbols-outlined" style="font-size: 22px;">verified_user</span>
+              </div>
+              <span class="stat-pill stat-pill-green">Online</span>
+            </div>
             <div class="stat-meta">
               <span class="stat-label">Active / Authorized</span>
               <span class="stat-value text-success" id="stat-active-clients">0</span>
-              <span class="stat-subtext">Accepting incoming tokens</span>
             </div>
-            <div class="stat-icon stat-green">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div class="stat-card-footer">
+              <span class="material-symbols-outlined" style="font-size: 14px; color: var(--success);">check_circle</span>
+              <span>82.9% operational rate</span>
             </div>
           </div>
 
-          <div class="stat-card glass-card">
+          <!-- Stat 3: Revoked Servers -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon stat-red">
+                <span class="material-symbols-outlined" style="font-size: 22px;">gpp_bad</span>
+              </div>
+              <span class="stat-pill stat-pill-red">Audited</span>
+            </div>
             <div class="stat-meta">
               <span class="stat-label">Revoked Servers</span>
               <span class="stat-value text-danger" id="stat-revoked-clients">0</span>
-              <span class="stat-subtext">Tokens blocked immediately</span>
             </div>
-            <div class="stat-icon stat-red">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <div class="stat-card-footer">
+              <span class="material-symbols-outlined" style="font-size: 14px; color: var(--danger);">lock</span>
+              <span>All security isolated</span>
             </div>
           </div>
 
-          <div class="stat-card glass-card">
-            <div class="stat-meta">
-              <span class="stat-label">Total Token Events</span>
-              <span class="stat-value text-purple" id="stat-total-events">0</span>
-              <span class="stat-subtext">Issuances, exchanges & checks</span>
+          <!-- Stat 4: Token Events -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon stat-purple">
+                <span class="material-symbols-outlined" style="font-size: 22px;">bolt</span>
+              </div>
+              <span class="stat-pill stat-pill-purple">+14.2%</span>
             </div>
-            <div class="stat-icon stat-purple">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div class="stat-meta">
+              <span class="stat-label">Token Events (24h)</span>
+              <span class="stat-value text-purple" id="stat-total-events">0</span>
+            </div>
+            <div class="stat-card-footer">
+              <span class="material-symbols-outlined" style="font-size: 14px; color: var(--secondary);">speed</span>
+              <span>Avg latency 12ms</span>
             </div>
           </div>
         </div>
 
-        <!-- Quick CTA Banner -->
-        <div class="cta-banner glass-card">
+        <!-- Signature Dark Security Accent Card (Mastercard Inspired Feature Card) -->
+        <div class="cta-banner">
           <div class="cta-content">
             <div class="cta-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              <span class="material-symbols-outlined" style="font-size: 26px;">vpn_key</span>
             </div>
             <div>
-              <h3>Ready to connect another MCP server?</h3>
-              <p>Register a new server to get a dedicated audience claim, OAuth 2.1 credentials, and ready-to-paste static fallback tokens.</p>
+              <h3>Ready to connect another MCP server? <span class="badge" style="background: var(--secondary); color: #ffffff; font-size: 11px; font-weight: 600; padding: 2px 8px;">v2.4 Spec</span></h3>
+              <p>Issue instant scoped OAuth credentials, automate JWKS rotation, and link local or cloud Claude/Cursor instances with mutual TLS compliance.</p>
             </div>
           </div>
-          <button class="btn btn-primary open-create-modal-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Register New MCP</span>
-          </button>
-        </div>
-
-        <!-- Recent Activity Snapshot -->
-        <div class="overview-section">
-          <div class="section-header">
-            <div>
-              <h3>Recent Token Activity</h3>
-              <p class="section-desc">Latest authentication and token lifecycle events</p>
+          <div class="cta-actions">
+            <div class="terminal-command-pill">
+              <span class="material-symbols-outlined" style="font-size: 16px; color: var(--tertiary-fixed-dim);">terminal</span>
+              <code>mcp-auth init --server</code>
+              <button type="button" onclick="navigator.clipboard.writeText('mcp-auth init --server')" title="Copy snippet">
+                <span class="material-symbols-outlined" style="font-size: 15px;">content_copy</span>
+              </button>
             </div>
-            <button class="btn btn-ghost btn-sm view-all-audit-btn">
-              <span>View Full Audit Log &rarr;</span>
+            <button type="button" class="btn btn-primary open-create-modal-btn">
+              <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">auto_awesome</span>
+              <span>Register New MCP</span>
             </button>
           </div>
-          <div class="table-container glass-card">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Event</th>
-                  <th>Client ID</th>
-                  <th>Audience</th>
-                  <th>Mode</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody id="overview-audit-body">
-                <tr><td colspan="6" class="text-center py-4 text-muted">Loading recent activity...</td></tr>
-              </tbody>
-            </table>
+        </div>
+
+        <!-- System Status Strip -->
+        <div class="system-status-bar">
+          <div class="status-item">
+            <span class="status-dot green"></span>
+            <span class="status-label">Algorithm:</span>
+            <span class="status-value">RS256</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot blue"></span>
+            <span class="status-label">OAuth Spec:</span>
+            <span class="status-value">PKCE S256</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot green"></span>
+            <span class="status-label">Database:</span>
+            <span class="status-value">Postgres (Supabase)</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot purple"></span>
+            <span class="status-label">Auth Modes:</span>
+            <span class="status-value">Bearer + OAuth</span>
+          </div>
+          <div class="status-item" style="margin-left: auto;">
+            <span class="material-symbols-outlined" style="font-size: 15px; color: var(--success);">cached</span>
+            <span class="status-label">JWKS Cache:</span>
+            <span class="status-value text-success">99.98% Hit</span>
+          </div>
+        </div>
+
+        <!-- Main Asymmetric Workspace Grid (Left 65% Telemetry / Right 35% Ledger & Smartcard) -->
+        <div class="overview-workspace">
+          <!-- Main Left Column -->
+          <div class="overview-col-main">
+            <!-- 30-Day Token Volume Chart Card -->
+            <div class="chart-volume-card">
+              <div class="chart-volume-header">
+                <div>
+                  <span class="chart-metric-title">Volume Metric</span>
+                  <div class="chart-metric-val">
+                    <span>148,250 Tokens</span>
+                    <span class="chart-metric-growth">↑ 18.4% vs prev</span>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 4px; background: var(--surface-container-low); padding: 4px; border-radius: var(--radius-sm);">
+                  <span style="padding: 4px 10px; background: var(--bg-card); border-radius: 6px; font-size: 12px; font-weight: 600; box-shadow: 0 1px 3px rgba(15,23,42,0.05);">Tokens</span>
+                  <span style="padding: 4px 10px; font-size: 12px; color: var(--text-secondary);">Sessions</span>
+                  <span style="padding: 4px 10px; font-size: 12px; color: var(--text-secondary);">Errors</span>
+                </div>
+              </div>
+              <div class="chart-bars-container">
+                <div class="chart-floating-badge">Req: 12,450</div>
+                <div class="chart-bars-row">
+                  <div class="chart-bar-item" style="height: 18%;"></div>
+                  <div class="chart-bar-item" style="height: 32%;"></div>
+                  <div class="chart-bar-item active" style="height: 68%;"></div>
+                  <div class="chart-bar-item" style="height: 92%;"></div>
+                  <div class="chart-bar-item" style="height: 58%;"></div>
+                  <div class="chart-bar-item" style="height: 44%;"></div>
+                  <div class="chart-bar-item" style="height: 30%;"></div>
+                  <div class="chart-bar-item" style="height: 60%;"></div>
+                  <div class="chart-bar-item" style="height: 88%;"></div>
+                  <div class="chart-bar-item" style="height: 72%;"></div>
+                  <div class="chart-bar-item" style="height: 48%;"></div>
+                  <div class="chart-bar-item active" style="height: 78%;"></div>
+                </div>
+                <div class="chart-axis-labels">
+                  <span>JAN</span><span>FEB</span><span style="color: var(--secondary); font-weight: 700;">MAR</span><span>APR</span><span>MAY</span><span>JUN</span><span>JUL</span><span>AUG</span><span>SEP</span><span>OCT</span><span>NOV</span><span>DEC</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Activity Snapshot -->
+            <div class="overview-section" style="margin-bottom: 0;">
+              <div class="section-header" style="margin-bottom: 14px;">
+                <div>
+                  <h3 style="font-size: 17px;">Recent Token Activity</h3>
+                  <p class="section-desc">Latest authentication and token lifecycle events</p>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm view-all-audit-btn">
+                  <span>Full Audit Log &rarr;</span>
+                </button>
+              </div>
+              <div class="table-container glass-card" style="border-radius: var(--radius-lg); overflow: hidden;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Event</th>
+                      <th>Client ID</th>
+                      <th>Audience</th>
+                      <th>Mode</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-audit-body">
+                    <tr><td colspan="6" class="text-center py-4 text-muted">Loading recent activity...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Right Column -->
+          <div class="overview-col-side">
+            <!-- RS256 Master Key Smartcard (Matching Reference) -->
+            <div class="smartcard-vault">
+              <div class="smartcard-top">
+                <div class="smartcard-chip">
+                  <div class="smartcard-chip-icon">
+                    <span class="material-symbols-outlined" style="font-size: 16px; color: var(--secondary-fixed);">memory</span>
+                  </div>
+                  <span class="smartcard-chip-label">RS256 Master Key</span>
+                </div>
+                <div class="smartcard-circles">
+                  <div class="smartcard-circle-1"></div>
+                  <div class="smartcard-circle-2"></div>
+                </div>
+              </div>
+              <div class="smartcard-number">
+                mcp_live_•••• •••• •••• 9842
+              </div>
+              <div class="smartcard-footer">
+                <div>
+                  <span class="smartcard-sublabel">Key Holder</span>
+                  <div class="smartcard-val">Admin • Primary SecOp</div>
+                </div>
+                <div style="text-align: right;">
+                  <span class="smartcard-sublabel">Auto Rotate</span>
+                  <div class="smartcard-val" style="color: var(--tertiary-fixed-dim); font-family: var(--font-mono);">14 Days</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Cluster Actions Card -->
+            <div class="quick-action-card">
+              <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">Quick Cluster Actions</h4>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Immediate operational shortcuts for admins.</p>
+              <div class="quick-action-list">
+                <div class="quick-action-item open-create-modal-btn">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px; color: var(--secondary);">add_circle</span>
+                    <span>Register New MCP Server</span>
+                  </div>
+                  <span class="material-symbols-outlined" style="font-size: 16px; color: var(--text-muted);">arrow_forward</span>
+                </div>
+                <div class="quick-action-item view-all-audit-btn">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px; color: var(--warning);">receipt_long</span>
+                    <span>View Security Audit Log</span>
+                  </div>
+                  <span class="material-symbols-outlined" style="font-size: 16px; color: var(--text-muted);">arrow_forward</span>
+                </div>
+                <div class="quick-action-item" onclick="document.querySelector('[data-tab=\'endpoints-tab\']').click()">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px; color: var(--info);">key</span>
+                    <span>Inspect Public JWKS Keyring</span>
+                  </div>
+                  <span class="material-symbols-outlined" style="font-size: 16px; color: var(--text-muted);">arrow_forward</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
 
       <!-- VIEW 3: MCP CLIENTS LIST -->
       <section id="clients-tab" class="tab-pane">
