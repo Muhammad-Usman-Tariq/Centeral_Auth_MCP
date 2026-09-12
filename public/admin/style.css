@@ -1639,3 +1639,263 @@ h1, h2, h3, h4 {
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
+
+/* ==========================================================================
+   Integration Guide Component Styles
+   ========================================================================== */
+
+.guide-steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.guide-step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+}
+
+.guide-step-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-container-high);
+  color: var(--accent-primary);
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+}
+
+.guide-step-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-step-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Integration Modes Cards */
+.mode-card {
+  background: var(--surface-container-low);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mode-card-header {
+  margin-bottom: 4px;
+}
+
+.guide-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.guide-feature-list .check-icon {
+  font-size: 16px;
+  color: var(--success);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Language Snippet Tabs */
+.guide-lang-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--surface-container-low);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.guide-lang-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.guide-lang-btn:hover {
+  color: var(--text-primary);
+}
+
+.guide-lang-btn.active {
+  background: var(--bg-card);
+  color: var(--accent-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.guide-code-pane {
+  display: none;
+}
+
+.guide-code-pane.active {
+  display: block;
+}
+
+/* AI Assistant Prompt Centerpiece */
+.ai-prompt-container {
+  background: var(--primary-container);
+  border-radius: var(--radius-xl);
+  padding: 26px 28px;
+  box-shadow: var(--shadow-vault);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-prompt-container::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -60px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(96, 99, 238, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.ai-prompt-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.ai-prompt-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 600px;
+}
+
+.ai-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.ai-prompt-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ai-prompt-body {
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 18px 20px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.ai-prompt-body pre {
+  margin: 0;
+}
+
+.ai-prompt-body code {
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+}
+
+.ai-prompt-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--primary-fixed-dim);
+}
+
+/* Verification Checklist */
+.guide-checklist {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (min-width: 800px) {
+  .guide-checklist {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.checklist-card {
+  background: var(--surface-container-low);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.check-icon-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 150, 104, 0.12);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}

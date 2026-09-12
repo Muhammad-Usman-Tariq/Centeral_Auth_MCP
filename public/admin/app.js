@@ -104,6 +104,13 @@ const snippetTabs = document.querySelectorAll('.snippet-tab');
 const metadataPreview = document.getElementById('metadata-preview');
 const jwksPreview = document.getElementById('jwks-preview');
 
+// Integration Guide Elements
+const guideClientSelect = document.getElementById('guide-client-select');
+const guidePythonCode = document.getElementById('guide-python-code');
+const guideNodeCode = document.getElementById('guide-node-code');
+const aiAssistantPrompt = document.getElementById('ai-assistant-prompt');
+const copyAiPromptBtn = document.getElementById('copy-ai-prompt-btn');
+
 // --- Toast Notification Helper ---
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
@@ -340,6 +347,8 @@ async function loadDashboardData() {
     loadAuditEvents(),
     loadDiscoveryPreviews()
   ]);
+  populateGuideClientDropdown();
+  updateGuideSnippets();
 }
 
 function updateOperationalRate(total, active) {
@@ -399,6 +408,7 @@ function updateClientCounts() {
   statActiveClients.innerText = active;
   statRevokedClients.innerText = revoked;
   updateOperationalRate(total, active);
+  populateGuideClientDropdown();
 }
 
 function renderClientsTable() {
@@ -755,6 +765,9 @@ async function loadDiscoveryPreviews() {
     if (metaRes.ok) {
       const meta = await metaRes.json();
       metadataPreview.textContent = JSON.stringify(meta, null, 2);
+      if (meta.issuer) state.issuerUrl = meta.issuer;
+      if (meta.jwks_uri) state.jwksUri = meta.jwks_uri;
+      updateGuideSnippets();
     } else {
       metadataPreview.textContent = '// Failed to load OAuth metadata';
     }
@@ -774,6 +787,133 @@ async function loadDiscoveryPreviews() {
     jwksPreview.textContent = `// Error loading JWKS: ${err.message}`;
   }
 }
+
+// --- Integration Guide Logic ---
+function populateGuideClientDropdown() {
+  if (!guideClientSelect) return;
+  const currentVal = guideClientSelect.value;
+
+  let optionsHtml = '<option value="" style="background: #131b2e; color: #ffffff;">Generic / Not Yet Registered (&lt;your-mcp-audience&gt;)</option>';
+  state.clients.forEach(client => {
+    const aud = escapeHtml(client.audience || client.client_id || '');
+    const name = escapeHtml(client.name || 'Unnamed MCP');
+    optionsHtml += `<option value="${aud}" style="background: #131b2e; color: #ffffff;">${name} (${aud})</option>`;
+  });
+
+  guideClientSelect.innerHTML = optionsHtml;
+  if (currentVal && state.clients.some(c => c.audience === currentVal)) {
+    guideClientSelect.value = currentVal;
+  }
+  updateGuideSnippets();
+}
+
+function updateGuideSnippets() {
+  const origin = window.location.origin;
+  const issuer = state.issuerUrl || origin;
+  const jwksUri = state.jwksUri || `${origin}/.well-known/jwks.json`;
+  const discoveryUri = `${issuer}/.well-known/oauth-authorization-server`;
+
+  const selectedAudience = (guideClientSelect && guideClientSelect.value)
+    ? guideClientSelect.value
+    : '<your-mcp-audience>';
+
+  if (guidePythonCode) {
+    guidePythonCode.textContent = 
+`# 1. Install required verification dependencies:
+# pip install PyJWT[crypto] requests
+
+from fastapi import FastAPI
+from sdk.python.mcp_auth_middleware import McpAuthMiddleware
+
+app = FastAPI(title="My Protected MCP Server")
+
+# 2. Add drop-in Central Auth verification middleware
+app.add_middleware(
+    McpAuthMiddleware,
+    jwks_uri="${jwksUri}",
+    audience="${selectedAudience}"
+)
+
+@app.get("/mcp/tools")
+async def list_tools():
+    # Only valid signed tokens for "${selectedAudience}" reach here
+    return {"tools": [...]}`;
+  }
+
+  if (guideNodeCode) {
+    guideNodeCode.textContent = 
+`// 1. Zero external npm dependencies (uses native Node.js crypto/https)
+const express = require('express');
+const { createMcpAuthMiddleware } = require('./sdk/node/mcp-auth-middleware.js');
+
+const app = express();
+
+// 2. Add drop-in Central Auth verification middleware
+app.use(createMcpAuthMiddleware({
+  jwksUri: '${jwksUri}',
+  audience: '${selectedAudience}'
+}));
+
+app.get('/mcp/tools', (req, res) => {
+  // Only valid signed tokens for "${selectedAudience}" reach here
+  res.json({ tools: [...] });
+});
+
+app.listen(8080);`;
+  }
+
+  if (aiAssistantPrompt) {
+    aiAssistantPrompt.textContent = 
+`I need to add authentication to my MCP server so it works with our Central Auth MCP system. Do NOT write custom authentication logic or generate new auth files — use the existing official middleware for this exact purpose.
+
+Details for this integration:
+- JWKS URI: ${jwksUri}
+- Audience: ${selectedAudience}
+- Discovery endpoint: ${discoveryUri}
+
+If my MCP server is written in Python:
+1. Install the middleware from the repository (sdk/python/mcp_auth_middleware.py)
+   Required dependencies: pip install PyJWT[crypto] requests
+2. Add it as FastAPI / Starlette middleware:
+   from sdk.python.mcp_auth_middleware import McpAuthMiddleware
+   app.add_middleware(McpAuthMiddleware, jwks_uri="${jwksUri}", audience="${selectedAudience}")
+3. Do not implement JWT verification manually — the middleware handles signature verification against the JWKS URI, audience checking, clock skew, and token expiry.
+
+If my MCP server is written in Node.js/TypeScript:
+1. Use the equivalent Node middleware (sdk/node/mcp-auth-middleware.js)
+   Zero external npm dependencies (uses native Node.js standard modules crypto/https).
+2. Wire it in as Express/Connect/Fastify middleware before your MCP route handlers:
+   const { createMcpAuthMiddleware } = require('./sdk/node/mcp-auth-middleware.js');
+   app.use(createMcpAuthMiddleware({ jwksUri: '${jwksUri}', audience: '${selectedAudience}' }));
+
+The goal: any request without a valid signed token for this exact audience must be rejected with 401. Valid tokens are issued by our Central Auth server, not by this MCP server itself — do not add login, registration, or token-issuing logic here, only verification.`;
+  }
+}
+
+if (guideClientSelect) {
+  guideClientSelect.addEventListener('change', updateGuideSnippets);
+}
+
+if (copyAiPromptBtn) {
+  copyAiPromptBtn.addEventListener('click', () => {
+    if (aiAssistantPrompt) {
+      copyToClipboard(aiAssistantPrompt.textContent, copyAiPromptBtn);
+    }
+  });
+}
+
+document.querySelectorAll('.guide-lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.guide-lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const lang = btn.getAttribute('data-lang');
+    document.querySelectorAll('.guide-code-pane').forEach(pane => {
+      pane.classList.remove('active');
+    });
+    const targetPane = document.getElementById(`guide-code-${lang}`);
+    if (targetPane) targetPane.classList.add('active');
+  });
+});
 
 // --- Client Detail Slide-Over Drawer ---
 function openClientDrawer(clientId) {
