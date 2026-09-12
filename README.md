@@ -78,7 +78,14 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 4. (Optional) Migrate Existing SQLite Data
+### 4. Database Migrations for Existing Deployments
+When pulling repository updates on an existing deployment, execute any pending incremental migration files in [`supabase/migrations/`](supabase/migrations/) in the Supabase SQL Editor:
+- **`001_add_current_static_token_jti.sql`**: Adds `current_static_token_jti` to `mcp_clients` for individual static token rotation tracking and invalidation.
+
+> [!IMPORTANT]
+> Always apply pending migrations in `supabase/migrations/` when updating a production Central Auth deployment to ensure the database schema remains synchronized with backend query models.
+
+### 5. (Optional) Migrate Existing SQLite Data
 If you had an existing SQLite database at `data/auth.db`, import all existing records directly into Supabase:
 ```bash
 python scripts/migrate_sqlite_to_supabase.py
@@ -104,12 +111,15 @@ python scripts/migrate_sqlite_to_supabase.py
 | `ADMIN_PASSWORD` | `admin-mcp-secret-2026` | Initial admin password | Retained |
 | `ADMIN_JWT_SECRET` | `central-mcp-...` | Secret used to sign admin session tokens | Retained |
 | `ACCESS_TOKEN_EXPIRY` | `3600` | Mode 1 OAuth access token lifespan (seconds) | Retained |
-| `STATIC_TOKEN_EXPIRY_DAYS`| `90` | Mode 2 static token lifespan (days) | Retained |
+| `STATIC_TOKEN_EXPIRY_DAYS`| `365` | Mode 2 static token lifespan (days) | Retained |
 | `AUTH_CODE_EXPIRY_SECONDS`| `300` | PKCE authorization code lifespan (seconds) | Retained |
 
 ---
 
 ## Adding a new MCP Server (Developer Workflow)
+
+> [!NOTE]
+> **Database Schema Prerequisite**: Ensure all schema migrations from `supabase/migrations/` (such as `001_add_current_static_token_jti.sql`) have been applied to your database so client listing, token rotation, and deletion operate seamlessly.
 
 ### Step 1: Register MCP in the Admin Console
 1. Open `http://localhost:3000/admin`.

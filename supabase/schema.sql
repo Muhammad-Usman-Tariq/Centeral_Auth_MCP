@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.mcp_clients (
     allowed_redirect_uris JSONB DEFAULT '[]'::jsonb,
     client_type TEXT DEFAULT 'confidential',
     revoked BOOLEAN DEFAULT false,
+    current_static_token_jti TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
