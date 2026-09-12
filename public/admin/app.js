@@ -105,7 +105,6 @@ const metadataPreview = document.getElementById('metadata-preview');
 const jwksPreview = document.getElementById('jwks-preview');
 
 // Integration Guide Elements
-const guideClientSelect = document.getElementById('guide-client-select');
 const guidePythonCode = document.getElementById('guide-python-code');
 const guideNodeCode = document.getElementById('guide-node-code');
 const aiAssistantPrompt = document.getElementById('ai-assistant-prompt');
@@ -204,10 +203,21 @@ function escapeHtml(str) {
 }
 
 // --- Confirmation Modal Helper ---
-function showConfirm({ title, message, warning, confirmText = 'Confirm', confirmClass = 'btn-danger', onConfirm }) {
+function showConfirm({ title, message, warning, customHtml = null, confirmText = 'Confirm', confirmClass = 'btn-danger', onConfirm }) {
   confirmTitle.innerText = title || 'Confirm Action';
   confirmMessage.innerText = message || 'Are you sure you want to proceed?';
   
+  const customContent = document.getElementById('confirm-custom-content');
+  if (customContent) {
+    if (customHtml) {
+      customContent.innerHTML = customHtml;
+      customContent.classList.remove('hidden');
+    } else {
+      customContent.innerHTML = '';
+      customContent.classList.add('hidden');
+    }
+  }
+
   if (warning) {
     confirmWarning.innerText = warning;
     confirmWarning.classList.remove('hidden');
@@ -225,6 +235,11 @@ function showConfirm({ title, message, warning, confirmText = 'Confirm', confirm
 function hideConfirm() {
   confirmModal.classList.add('hidden');
   state.confirmCallback = null;
+  const customContent = document.getElementById('confirm-custom-content');
+  if (customContent) {
+    customContent.innerHTML = '';
+    customContent.classList.add('hidden');
+  }
 }
 
 confirmActionBtn.addEventListener('click', () => {
@@ -347,7 +362,6 @@ async function loadDashboardData() {
     loadAuditEvents(),
     loadDiscoveryPreviews()
   ]);
-  populateGuideClientDropdown();
   updateGuideSnippets();
 }
 
@@ -408,7 +422,7 @@ function updateClientCounts() {
   statActiveClients.innerText = active;
   statRevokedClients.innerText = revoked;
   updateOperationalRate(total, active);
-  populateGuideClientDropdown();
+  updateGuideSnippets();
 }
 
 function renderClientsTable() {
@@ -485,7 +499,7 @@ function renderClientsTable() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               <span>Details</span>
             </button>
-            <button class="btn btn-xs btn-secondary action-token-btn" data-id="${escapeHtml(client.client_id)}" title="Issue a fresh 90-day Mode 2 static token">
+            <button class="btn btn-xs btn-secondary action-token-btn" data-id="${escapeHtml(client.client_id)}" title="Generate a fresh 1-year or permanent Mode 2 static token">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
               <span>Token</span>
             </button>
@@ -789,33 +803,12 @@ async function loadDiscoveryPreviews() {
 }
 
 // --- Integration Guide Logic ---
-function populateGuideClientDropdown() {
-  if (!guideClientSelect) return;
-  const currentVal = guideClientSelect.value;
-
-  let optionsHtml = '<option value="" style="background: #131b2e; color: #ffffff;">Generic / Not Yet Registered (&lt;your-mcp-audience&gt;)</option>';
-  state.clients.forEach(client => {
-    const aud = escapeHtml(client.audience || client.client_id || '');
-    const name = escapeHtml(client.name || 'Unnamed MCP');
-    optionsHtml += `<option value="${aud}" style="background: #131b2e; color: #ffffff;">${name} (${aud})</option>`;
-  });
-
-  guideClientSelect.innerHTML = optionsHtml;
-  if (currentVal && state.clients.some(c => c.audience === currentVal)) {
-    guideClientSelect.value = currentVal;
-  }
-  updateGuideSnippets();
-}
-
 function updateGuideSnippets() {
   const origin = window.location.origin;
   const issuer = state.issuerUrl || origin;
   const jwksUri = state.jwksUri || `${origin}/.well-known/jwks.json`;
   const discoveryUri = `${issuer}/.well-known/oauth-authorization-server`;
-
-  const selectedAudience = (guideClientSelect && guideClientSelect.value)
-    ? guideClientSelect.value
-    : '<your-mcp-audience>';
+  const audience = '<your-mcp-audience>';
 
   if (guidePythonCode) {
     guidePythonCode.textContent = 
@@ -831,12 +824,12 @@ app = FastAPI(title="My Protected MCP Server")
 app.add_middleware(
     McpAuthMiddleware,
     jwks_uri="${jwksUri}",
-    audience="${selectedAudience}"
+    audience="${audience}"
 )
 
 @app.get("/mcp/tools")
 async def list_tools():
-    # Only valid signed tokens for "${selectedAudience}" reach here
+    # Only valid signed tokens for "${audience}" reach here
     return {"tools": [...]}`;
   }
 
@@ -851,11 +844,11 @@ const app = express();
 // 2. Add drop-in Central Auth verification middleware
 app.use(createMcpAuthMiddleware({
   jwksUri: '${jwksUri}',
-  audience: '${selectedAudience}'
+  audience: '${audience}'
 }));
 
 app.get('/mcp/tools', (req, res) => {
-  // Only valid signed tokens for "${selectedAudience}" reach here
+  // Only valid signed tokens for "${audience}" reach here
   res.json({ tools: [...] });
 });
 
@@ -868,7 +861,7 @@ app.listen(8080);`;
 
 Details for this integration:
 - JWKS URI: ${jwksUri}
-- Audience: ${selectedAudience}
+- Audience: ${audience}
 - Discovery endpoint: ${discoveryUri}
 
 If my MCP server is written in Python:
@@ -876,7 +869,7 @@ If my MCP server is written in Python:
    Required dependencies: pip install PyJWT[crypto] requests
 2. Add it as FastAPI / Starlette middleware:
    from sdk.python.mcp_auth_middleware import McpAuthMiddleware
-   app.add_middleware(McpAuthMiddleware, jwks_uri="${jwksUri}", audience="${selectedAudience}")
+   app.add_middleware(McpAuthMiddleware, jwks_uri="${jwksUri}", audience="${audience}")
 3. Do not implement JWT verification manually — the middleware handles signature verification against the JWKS URI, audience checking, clock skew, and token expiry.
 
 If my MCP server is written in Node.js/TypeScript:
@@ -884,14 +877,10 @@ If my MCP server is written in Node.js/TypeScript:
    Zero external npm dependencies (uses native Node.js standard modules crypto/https).
 2. Wire it in as Express/Connect/Fastify middleware before your MCP route handlers:
    const { createMcpAuthMiddleware } = require('./sdk/node/mcp-auth-middleware.js');
-   app.use(createMcpAuthMiddleware({ jwksUri: '${jwksUri}', audience: '${selectedAudience}' }));
+   app.use(createMcpAuthMiddleware({ jwksUri: '${jwksUri}', audience: '${audience}' }));
 
 The goal: any request without a valid signed token for this exact audience must be rejected with 401. Valid tokens are issued by our Central Auth server, not by this MCP server itself — do not add login, registration, or token-issuing logic here, only verification.`;
   }
-}
-
-if (guideClientSelect) {
-  guideClientSelect.addEventListener('change', updateGuideSnippets);
 }
 
 if (copyAiPromptBtn) {
@@ -1093,6 +1082,10 @@ createMcpForm.addEventListener('submit', async (e) => {
   const payload = { name };
   if (audience) payload.audience = audience;
   if (redirect_uris && redirect_uris.length > 0) payload.redirect_uris = redirect_uris;
+  const lifetimeEl = document.getElementById('new-mcp-token-lifetime');
+  if (lifetimeEl) {
+    payload.staticTokenDays = parseInt(lifetimeEl.value, 10);
+  }
 
   createSubmitBtn.disabled = true;
   createSpinner.classList.remove('hidden');
@@ -1141,6 +1134,15 @@ function displaySecretRevealModal(data) {
   revealAudience.innerText = client.audience || '—';
   revealClientId.value = client.client_id || '—';
   revealSecret.value = secret;
+
+  const staticLabel = document.getElementById('reveal-static-token-label');
+  if (staticLabel) {
+    if (staticTokenObj?.expiresIn && staticTokenObj.expiresIn > 365 * 86400) {
+      staticLabel.innerText = 'Mode 2 Static Token (No Expiry / 10-Year RS256 JWT)';
+    } else {
+      staticLabel.innerText = 'Mode 2 Static Token (1-Year Signed RS256 JWT)';
+    }
+  }
 
   if (staticToken) {
     revealStaticTokenSection.classList.remove('hidden');
@@ -1218,18 +1220,38 @@ curl -X POST http://localhost:8000/mcp \\
 // 1. Generate Static Token
 function confirmGenerateStaticToken(clientId) {
   const client = state.clients.find(c => c.client_id === clientId);
+  const clientName = escapeHtml(client?.name || clientId);
+
+  const customHtml = `
+    <div style="margin-top: 8px;">
+      <label for="confirm-token-lifetime" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text-primary);">
+        Static Token Lifetime:
+      </label>
+      <select id="confirm-token-lifetime" class="form-select" style="width: 100%; margin-bottom: 8px;">
+        <option value="365" selected>1 Year (365 Days) — Default (Recommended)</option>
+        <option value="0">No Expiry (10 Years) — Permanent Production</option>
+        <option value="90">90 Days — Temporary / Testing</option>
+      </select>
+    </div>
+  `;
+
   showConfirm({
-    title: 'Generate New Static Token',
-    message: `Generate a fresh 90-day Mode 2 static token for "${client?.name || clientId}"?`,
+    title: 'Generate Fresh Static Token',
+    message: `Generate a fresh Mode 2 static token for "${clientName}"?`,
+    customHtml: customHtml,
     warning: 'Any previous static token issued for this client will continue working until its expiration or client revocation.',
-    confirmText: 'Generate Static Token',
+    confirmText: 'Generate Token',
     confirmClass: 'btn-primary',
     onConfirm: async () => {
+      const lifetimeEl = document.getElementById('confirm-token-lifetime');
+      const days = lifetimeEl ? parseInt(lifetimeEl.value, 10) : 365;
       try {
         const res = await apiFetch(`/admin/api/clients/${encodeURIComponent(clientId)}/static-token`, {
-          method: 'POST'
+          method: 'POST',
+          body: JSON.stringify({ days: days })
         });
-        showToast('Generated fresh 90-day static token');
+        const isNoExpiry = days === 0;
+        showToast(isNoExpiry ? 'Generated permanent (10-year) static token' : `Generated fresh ${days === 365 ? '1-year' : `${days}-day`} static token`);
 
         // Reveal the newly generated token in the reveal modal
         state.currentGeneratedCreds = {
@@ -1246,6 +1268,22 @@ function confirmGenerateStaticToken(clientId) {
       }
     }
   });
+
+  // Dynamic warning if No Expiry is chosen
+  setTimeout(() => {
+    const selectEl = document.getElementById('confirm-token-lifetime');
+    const warningEl = document.getElementById('confirm-warning');
+    if (selectEl && warningEl) {
+      selectEl.addEventListener('change', () => {
+        if (selectEl.value === '0') {
+          warningEl.innerText = 'SECURITY WARNING: No expiry — only use for long-running production MCPs where automatic rotation isn\'t feasible; revoke manually if compromised.';
+          warningEl.classList.remove('hidden');
+        } else {
+          warningEl.innerText = 'Any previous static token issued for this client will continue working until its expiration or client revocation.';
+        }
+      });
+    }
+  }, 50);
 }
 
 // 2. Revoke Client
@@ -1313,6 +1351,7 @@ function confirmUnrevokeClient(clientId) {
 document.addEventListener('click', (e) => {
   const copyBtn = e.target.closest('.copy-btn');
   if (!copyBtn) return;
+  if (copyBtn.id === 'copy-ai-prompt-btn') return;
 
   const targetId = copyBtn.getAttribute('data-target');
   if (!targetId) return;
@@ -1352,11 +1391,14 @@ async function copyToClipboard(text, btnElement = null) {
     if (btnElement) {
       const originalHtml = btnElement.innerHTML;
       btnElement.classList.add('btn-copied');
-      btnElement.innerText = 'Copied!';
+      btnElement.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 16px;">check</span>
+        <span>Copied!</span>
+      `;
       setTimeout(() => {
         btnElement.classList.remove('btn-copied');
         btnElement.innerHTML = originalHtml;
-      }, 1500);
+      }, 2000);
     }
   } catch (err) {
     showToast('Could not copy to clipboard', 'danger');

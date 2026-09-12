@@ -70,9 +70,11 @@ def sign_static_token(
     audience: str,
     days: Optional[int] = None
 ) -> Dict[str, Any]:
-    """Signs a static long-lived token (Mode 2 fallback)."""
+    """Signs a static long-lived token (Mode 2 fallback). Default 365 days, or 3650 (10 yrs) for no-expiry."""
     if days is None:
         days = settings.static_token_expiry_days
+    elif days <= 0:
+        days = 3650  # 10 years (effectively no-expiry)
     expires_in_seconds = days * 24 * 60 * 60
 
     return sign_mcp_token(

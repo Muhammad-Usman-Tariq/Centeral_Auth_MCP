@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # Token Lifetimes
     access_token_expiry: int = 3600  # 1 hour in seconds
-    static_token_expiry_days: int = 90  # 90 days
+    static_token_expiry_days: int = 365  # 1 year default (3650 for no-expiry)
     auth_code_expiry_seconds: int = 300  # 5 minutes
 
     # Rate Limiting

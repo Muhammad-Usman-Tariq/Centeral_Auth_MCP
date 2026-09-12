@@ -541,7 +541,7 @@
             </div>
             <h2>MCP Server Integration Guide</h2>
             <p class="section-desc" style="max-width: 860px; margin-top: 4px;">
-              Central Auth MCP provides centralized RS256 token issuance and RFC 7517 JWKS signature verification for Model Context Protocol servers. Connect your MCP server to enforce scoped audience boundaries and accept authorized calls from Claude, Cursor, and custom agents without writing custom authentication logic.
+              Central Auth MCP provides centralized RS256 token issuance and RFC 7517 JWKS signature verification for Model Context Protocol servers. Connect your MCP server to enforce scoped audience boundaries and accept authorized calls from Claude, Antigravity, OpenAI/GPT, Cursor, and any custom agent without writing custom authentication logic.
             </p>
           </div>
         </div>
@@ -563,12 +563,12 @@
                 </button>
               </div>
               <p class="text-sm text-secondary" style="margin-top: 8px; line-height: 1.6;">
-                Navigate to the <strong>MCP Servers</strong> tab and click <strong>Register New MCP</strong>. You will define a server name and receive a unique <strong>audience identifier (aud)</strong> (e.g. <code>mcp-invoicing</code>). The system immediately generates both a 90-day static bearer token for simple setups and OAuth 2.1 credentials for dynamic clients.
+                Navigate to the <strong>MCP Servers</strong> tab and click <strong>Register New MCP</strong>. You will define a server name and receive a unique <strong>audience identifier (aud)</strong> (e.g. <code>mcp-invoicing</code>). The system immediately generates both a 1-year (or permanent) static bearer token for simple setups and OAuth 2.1 credentials for dynamic clients.
               </p>
             </div>
           </div>
 
-          <!-- STEP 2: CHOOSE INTEGRATION MODE -->
+          <!-- STEP 2: CHOOSE INTEGRATION MODE (Mode 1 on Left, Mode 2 on Right) -->
           <div class="glass-card guide-step-card">
             <div class="guide-step-badge">2</div>
             <div class="guide-step-body">
@@ -579,19 +579,7 @@
                 </div>
               </div>
               <div class="grid-2col" style="margin-top: 14px; gap: 16px;">
-                <div class="mode-card">
-                  <div class="mode-card-header">
-                    <span class="badge badge-success">Mode 2 &bull; Simplest</span>
-                    <h4 style="font-size: 15px; margin-top: 6px; font-weight: 700;">Static Long-Lived Token</h4>
-                  </div>
-                  <p class="text-sm text-secondary" style="margin: 8px 0 12px; line-height: 1.5;">
-                    A signed 90-day RS256 token passed directly in client HTTP headers (<code>Authorization: Bearer &lt;token&gt;</code> or <code>x-api-key: &lt;token&gt;</code>).
-                  </p>
-                  <ul class="guide-feature-list">
-                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Zero client negotiation:</strong> Ideal for single-server setups, CLI tools, scripts, and internal MCPs.</div></li>
-                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Offline verification:</strong> Your MCP verifies signatures against JWKS with zero database calls.</div></li>
-                  </ul>
-                </div>
+                <!-- Mode 1: OAuth 2.1 (Presented First / Left) -->
                 <div class="mode-card">
                   <div class="mode-card-header">
                     <span class="badge badge-primary">Mode 1 &bull; Standards-Based</span>
@@ -601,15 +589,31 @@
                     Full RFC 8414 metadata discovery and RFC 7636 PKCE S256 authorization code exchange.
                   </p>
                   <ul class="guide-feature-list">
-                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Native Claude &amp; Cursor support:</strong> Clients automatically negotiate tokens and refresh them.</div></li>
-                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>No manual secret copying:</strong> Tokens are issued per-user and rotated seamlessly.</div></li>
+                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Supported Clients:</strong> Native integration with Claude, Antigravity, OpenAI/GPT, Cursor, and any custom agent — clients automatically negotiate tokens and refresh them.</div></li>
+                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>No manual secret copying:</strong> Tokens are issued dynamically per session and rotated seamlessly.</div></li>
+                  </ul>
+                </div>
+
+                <!-- Mode 2: Static Token (Presented Second / Right) -->
+                <div class="mode-card">
+                  <div class="mode-card-header">
+                    <span class="badge badge-success">Mode 2 &bull; Simplest</span>
+                    <h4 style="font-size: 15px; margin-top: 6px; font-weight: 700;">Static Long-Lived Token</h4>
+                  </div>
+                  <p class="text-sm text-secondary" style="margin: 8px 0 12px; line-height: 1.5;">
+                    A signed 1-year (or permanent) RS256 token passed directly in client HTTP headers (<code>Authorization: Bearer &lt;token&gt;</code> or <code>x-api-key: &lt;token&gt;</code>).
+                  </p>
+                  <ul class="guide-feature-list">
+                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Zero renewal burden:</strong> Issued with a 1-year default lifetime (or permanent 10-year production setting) — no manual 90-day renewal cycle.</div></li>
+                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Zero client negotiation:</strong> Paste one token into your MCP headers or environment, done. Best for single-server setups.</div></li>
+                    <li><span class="material-symbols-outlined check-icon">check</span> <div><strong>Offline verification:</strong> Your MCP verifies signatures against JWKS with zero database calls.</div></li>
                   </ul>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- STEP 3: CODE SNIPPETS -->
+          <!-- STEP 3: CODE SNIPPETS WITH VISIBLE COPY BUTTONS -->
           <div class="glass-card guide-step-card">
             <div class="guide-step-badge">3</div>
             <div class="guide-step-body">
@@ -628,8 +632,9 @@
               <div class="guide-code-pane active" id="guide-code-python">
                 <div class="code-box" style="position: relative; margin-top: 12px;">
                   <pre><code id="guide-python-code" class="font-mono"># Loading Python snippet...</code></pre>
-                  <button type="button" class="btn btn-xs btn-secondary copy-btn" data-target="guide-python-code" style="position: absolute; top: 12px; right: 12px;">
-                    Copy Python Code
+                  <button type="button" class="btn btn-sm guide-copy-btn copy-btn" data-target="guide-python-code" style="position: absolute; top: 12px; right: 12px;" title="Copy Python snippet">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                    <span>Copy</span>
                   </button>
                 </div>
                 <p class="text-xs text-muted" style="margin-top: 8px;">
@@ -641,8 +646,9 @@
               <div class="guide-code-pane" id="guide-code-node">
                 <div class="code-box" style="position: relative; margin-top: 12px;">
                   <pre><code id="guide-node-code" class="font-mono"># Loading Node.js snippet...</code></pre>
-                  <button type="button" class="btn btn-xs btn-secondary copy-btn" data-target="guide-node-code" style="position: absolute; top: 12px; right: 12px;">
-                    Copy Node.js Code
+                  <button type="button" class="btn btn-sm guide-copy-btn copy-btn" data-target="guide-node-code" style="position: absolute; top: 12px; right: 12px;" title="Copy Node.js snippet">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                    <span>Copy</span>
                   </button>
                 </div>
                 <p class="text-xs text-muted" style="margin-top: 8px;">
@@ -661,25 +667,25 @@
                 </div>
                 <div>
                   <h3 style="color: #ffffff; font-size: 17px; font-weight: 700; margin-bottom: 2px;">
-                    Give This to Your AI Assistant (Claude Code, Cursor, Antigravity)
+                    Give This to Your AI Assistant (Claude, Antigravity, OpenAI/GPT, Cursor, and any custom agent)
                   </h3>
                   <p style="color: var(--primary-fixed-dim); font-size: 13px;">
-                    Hand this exact prompt to an AI coding assistant to correctly integrate authentication into your MCP codebase.
+                    Hand this exact prompt to an AI coding assistant (Claude, Antigravity, OpenAI/GPT, Cursor, and any custom agent) to correctly integrate authentication into your MCP codebase.
                   </p>
                 </div>
               </div>
               <div class="ai-prompt-controls">
-                <div class="ai-client-picker">
-                  <label for="guide-client-select" style="color: var(--primary-fixed-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); display: block; margin-bottom: 2px;">Target MCP Server:</label>
-                  <select id="guide-client-select" class="form-select form-select-sm" style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border-color: rgba(255, 255, 255, 0.25); min-width: 220px;">
-                    <option value="" style="background: #131b2e; color: #ffffff;">Generic / Not Yet Registered</option>
-                  </select>
-                </div>
                 <button type="button" class="btn btn-primary" id="copy-ai-prompt-btn" style="background: var(--secondary-container); box-shadow: 0 4px 14px rgba(96, 99, 238, 0.4); white-space: nowrap;">
                   <span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">content_copy</span>
                   <span>Copy Prompt</span>
                 </button>
               </div>
+            </div>
+
+            <!-- Inline note near prompt block -->
+            <div class="ai-prompt-note" style="margin-bottom: 12px; padding: 10px 14px; background: rgba(255, 255, 255, 0.08); border-left: 3px solid var(--tertiary-fixed-dim); border-radius: 4px; font-size: 13px; color: var(--primary-fixed);">
+              <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 6px; color: var(--tertiary-fixed-dim);">info</span>
+              Replace <code>&lt;your-mcp-audience&gt;</code> with the audience value you received when you registered your MCP in Step 1.
             </div>
 
             <div class="ai-prompt-body">
@@ -688,7 +694,7 @@
             <div class="ai-prompt-footer">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="material-symbols-outlined" style="font-size: 16px; color: var(--tertiary-fixed-dim);">verified</span>
-                <span>All parameters, URLs, and audience scopes are dynamically tailored to <strong>this deployment</strong>.</span>
+                <span>JWKS URI and Discovery URLs are dynamically tailored to <strong>this deployment</strong>. Audience is protected as a placeholder.</span>
               </div>
             </div>
           </div>
@@ -797,6 +803,16 @@
               <input type="text" id="new-mcp-redirects" placeholder="http://127.0.0.1:*, http://localhost:*" class="font-mono">
               <span class="hint">Comma-separated. Defaults to local desktop OAuth loopbacks if left empty.</span>
             </div>
+
+            <div class="form-group">
+              <label for="new-mcp-token-lifetime">Static Token Lifetime (Mode 2)</label>
+              <select id="new-mcp-token-lifetime" class="form-select">
+                <option value="365" selected>1 Year (365 Days) — Default (Recommended)</option>
+                <option value="0">No Expiry (10 Years) — Permanent Production</option>
+                <option value="90">90 Days — Temporary / Testing</option>
+              </select>
+              <span class="hint" id="new-mcp-lifetime-hint">Tokens can be revoked immediately from the admin dashboard if compromised.</span>
+            </div>
           </div>
         </details>
 
@@ -890,7 +906,7 @@
 
             <div id="reveal-static-token-section" class="credential-item">
               <div class="label-with-meta">
-                <label>Mode 2 Static Token (90-Day Signed RS256 JWT)</label>
+                <label id="reveal-static-token-label">Mode 2 Static Token (1-Year Signed RS256 JWT)</label>
                 <span class="badge badge-pulse">Ready to Paste</span>
               </div>
               <div class="copy-input-group">
@@ -993,7 +1009,7 @@
             <div class="action-item">
               <div>
                 <strong>Generate New Static Token</strong>
-                <p class="text-muted text-xs">Issues a fresh 90-day signed RS256 JWT for header-based clients.</p>
+                <p class="text-muted text-xs">Issues a fresh 1-year or permanent signed RS256 JWT for header-based clients.</p>
               </div>
               <button class="btn btn-sm btn-secondary" id="detail-gen-token-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
@@ -1058,6 +1074,7 @@
       </div>
       <div class="modal-body">
         <p id="confirm-message" class="mb-3">Are you sure you want to proceed?</p>
+        <div id="confirm-custom-content" class="mb-3 hidden"></div>
         <div id="confirm-warning" class="alert alert-danger hidden"></div>
       </div>
       <div class="modal-footer">

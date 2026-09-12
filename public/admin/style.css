@@ -1899,3 +1899,47 @@ h1, h2, h3, h4 {
   flex-shrink: 0;
   margin-top: 1px;
 }
+
+/* Guide Code Block Copy Buttons */
+.guide-copy-btn {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.guide-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.guide-copy-btn.btn-copied,
+.btn-primary.btn-copied,
+.btn.btn-copied {
+  background: var(--success) !important;
+  border-color: var(--success) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(0, 150, 104, 0.4) !important;
+}
+
+.ai-prompt-note code {
+  background: rgba(0, 0, 0, 0.3);
+  color: #fcd34d;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

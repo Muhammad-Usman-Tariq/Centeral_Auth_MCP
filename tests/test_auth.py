@@ -147,6 +147,21 @@ def test_suite():
         assert "http://127.0.0.1:*" in simple_data1["client"]["allowed_redirect_uris"]
         assert "http://localhost:*" in simple_data1["client"]["allowed_redirect_uris"]
         assert bool(simple_data1["staticToken"]["token"])
+        assert simple_data1["staticToken"]["expiresIn"] == 365 * 24 * 60 * 60, (
+            f"Expected 365 days (31536000s) default static token expiry, got {simple_data1['staticToken']['expiresIn']}"
+        )
+
+        # Verify explicit 'No Expiry' option (days: 0 => 3650 days / 10 years)
+        no_exp_res = session.post(
+            f"{base_url}/admin/api/clients/{test_client_id}/static-token",
+            json={"days": 0},
+            headers=admin_headers
+        )
+        assert no_exp_res.status_code == 200
+        assert no_exp_res.json()["staticToken"]["expiresIn"] == 3650 * 24 * 60 * 60, (
+            f"Expected 3650 days for no-expiry static token, got {no_exp_res.json()['staticToken']['expiresIn']}"
+        )
+        print("  \033[32m[PASS]\033[0m Default static token expiry is 365 days; No-Expiry option issues 10-year token")
 
         # Validate envSnippet format and content
         snippet1 = simple_data1["envSnippet"]

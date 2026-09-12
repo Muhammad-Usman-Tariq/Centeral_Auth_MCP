@@ -32,13 +32,13 @@ class CreateClientRequest(BaseModel):
         validation_alias=AliasChoices("generateStaticToken", "generate_static_token")
     )
     staticTokenDays: int = Field(
-        default=90,
+        default=365,
         validation_alias=AliasChoices("staticTokenDays", "static_token_days")
     )
 
 
 class StaticTokenRequest(BaseModel):
-    days: int = 90
+    days: int = 365
 
 
 @router.post("/login")
@@ -174,8 +174,11 @@ async def create_mcp_client(
         )
         client = reg_result["client"]
 
-        # 3. Always auto-generate Mode 2 static token on creation
-        static_token_days = body.staticTokenDays if body.staticTokenDays and body.staticTokenDays > 0 else 90
+        # 3. Always auto-generate Mode 2 static token on creation (default 365 days / 1 year)
+        if body.staticTokenDays is not None:
+            static_token_days = 3650 if body.staticTokenDays <= 0 else body.staticTokenDays
+        else:
+            static_token_days = 365
         static_token_data = client_service.generate_static_token_for_client(
             client_id=client["client_id"],
             days=static_token_days,
@@ -248,7 +251,10 @@ async def generate_client_static_token(
 ):
     """Generate a new Mode 2 static token for an MCP client."""
     client_ip = req.client.host if req.client else "unknown"
-    days = body.days if body else 90
+    if body and body.days is not None:
+        days = 3650 if body.days <= 0 else body.days
+    else:
+        days = 365
 
     client = models.get_client_by_id(client_id_or_id) or models.get_client_by_client_id(client_id_or_id)
     if not client:
