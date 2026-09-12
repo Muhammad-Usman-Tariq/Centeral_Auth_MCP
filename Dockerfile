@@ -45,12 +45,12 @@ COPY --chown=mcpuser:mcpuser supabase/ /app/supabase/
 USER mcpuser
 
 # Environment variables with production defaults
-ENV PORT=8000 \
+ENV PORT=3000 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     WEB_CONCURRENCY=2
 
-EXPOSE 8000
+EXPOSE 3000
 
 # Container healthcheck hitting the public /health endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
