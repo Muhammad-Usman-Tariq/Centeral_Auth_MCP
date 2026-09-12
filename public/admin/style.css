@@ -1460,6 +1460,34 @@ h1, h2, h3, h4 {
   border-color: #f87171;
 }
 
+.btn-danger-subtle {
+  background: rgba(186, 26, 26, 0.08);
+  color: #ba1a1a;
+  border: 1px solid rgba(186, 26, 26, 0.25);
+}
+.btn-danger-subtle:hover {
+  background: #ba1a1a;
+  color: #ffffff;
+  border-color: #ba1a1a;
+}
+
+.btn:disabled, button:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.action-item-danger {
+  border-left: 3px solid #ba1a1a;
+  padding-left: 10px;
+}
+
+.badge-purple {
+  background: var(--purple-bg);
+  color: #6063ee;
+  border: 1px solid rgba(96, 99, 238, 0.25);
+}
+
 .btn-copied {
   background: var(--success) !important;
   color: #fff !important;

@@ -46,6 +46,7 @@ class McpAuthMiddleware(BaseHTTPMiddleware):
         self.revocation_cache_ttl = revocation_cache_ttl
         self.revocation_cache_expires_at = 0.0
         self.revoked_client_ids: Set[str] = set()
+        self.revoked_jtis: Set[str] = set()
 
     def _refresh_revocations(self):
         now = time.time()
@@ -55,6 +56,7 @@ class McpAuthMiddleware(BaseHTTPMiddleware):
                 if resp.status_code == 200:
                     data = resp.json()
                     self.revoked_client_ids = set(data.get("revoked_client_ids", []))
+                    self.revoked_jtis = set(data.get("revoked_jtis", []))
                     self.revocation_cache_expires_at = now + self.revocation_cache_ttl
             except Exception as e:
                 # Retain old cache on transient network error
@@ -65,6 +67,12 @@ class McpAuthMiddleware(BaseHTTPMiddleware):
             return False
         self._refresh_revocations()
         return client_id in self.revoked_client_ids
+
+    def _is_jti_revoked(self, jti: str) -> bool:
+        if not jti:
+            return False
+        self._refresh_revocations()
+        return jti in self.revoked_jtis
 
     async def dispatch(self, request: Request, call_next):
         token = None
@@ -107,7 +115,7 @@ class McpAuthMiddleware(BaseHTTPMiddleware):
                 leeway=self.clock_skew_seconds
             )
 
-            # 3. Check revocation status
+            # 3. Check revocation status (client-level and individual token JTI)
             client_id = payload.get("client_id") or payload.get("sub")
             if self._is_revoked(client_id):
                 return JSONResponse(
@@ -115,6 +123,17 @@ class McpAuthMiddleware(BaseHTTPMiddleware):
                     content={
                         "error": "invalid_token",
                         "error_description": f'Client "{client_id}" has been revoked.'
+                    },
+                    headers={"WWW-Authenticate": f'Bearer realm="{self.audience}", error="invalid_token"'}
+                )
+
+            jti = payload.get("jti")
+            if self._is_jti_revoked(jti):
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "error": "invalid_token",
+                        "error_description": "Token has been revoked or rotated."
                     },
                     headers={"WWW-Authenticate": f'Bearer realm="{self.audience}", error="invalid_token"'}
                 )

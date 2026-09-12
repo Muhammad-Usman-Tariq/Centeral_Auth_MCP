@@ -76,14 +76,35 @@ def generate_static_token_for_client(
         days=days
     )
 
-    models.add_token_event(
-        event_type="issued",
-        client_id=client["client_id"],
-        audience=client["audience"],
-        mode="static_token",
-        details={"jti": token_data["jti"], "days": days, "expiresIn": token_data["expires_in"]},
-        ip_address=ip_address
-    )
+    old_jti = client.get("current_static_token_jti")
+    if old_jti:
+        # Invalidate the old static token specifically
+        models.revoke_token_jti(old_jti, client["client_id"])
+        models.add_token_event(
+            event_type="rotated",
+            client_id=client["client_id"],
+            audience=client["audience"],
+            mode="static_token",
+            details={
+                "old_jti": old_jti,
+                "new_jti": token_data["jti"],
+                "days": days,
+                "expiresIn": token_data["expires_in"]
+            },
+            ip_address=ip_address
+        )
+    else:
+        models.add_token_event(
+            event_type="issued",
+            client_id=client["client_id"],
+            audience=client["audience"],
+            mode="static_token",
+            details={"jti": token_data["jti"], "days": days, "expiresIn": token_data["expires_in"]},
+            ip_address=ip_address
+        )
+
+    # Update client's active static token JTI
+    models.update_client_static_token_jti(client["id"], token_data["jti"])
 
     return {
         "token": token_data["token"],
@@ -145,3 +166,23 @@ def unrevoke_client(client_id_or_id: str, ip_address: Optional[str] = None) -> D
     )
 
     return updated
+
+
+def delete_client(client_id_or_id: str, ip_address: Optional[str] = None) -> Dict[str, Any]:
+    """Permanently deletes an MCP client while preserving historical audit logs."""
+    client = models.get_client_by_id(client_id_or_id) or models.get_client_by_client_id(client_id_or_id)
+    if not client:
+        raise ValueError("Client not found")
+
+    models.delete_client(client["id"])
+
+    models.add_token_event(
+        event_type="deleted",
+        client_id=client["client_id"],
+        audience=client["audience"],
+        mode="admin",
+        details={"action": "delete_client", "name": client.get("name")},
+        ip_address=ip_address
+    )
+
+    return {"status": "deleted", "client_id": client["client_id"], "id": client["id"]}

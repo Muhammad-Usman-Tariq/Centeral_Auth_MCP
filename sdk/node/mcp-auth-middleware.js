@@ -50,6 +50,7 @@ function createMcpAuthMiddleware(options) {
 
   let revocationCache = {
     revokedClientIds: new Set(),
+    revokedJtis: new Set(),
     expiresAt: 0
   };
 
@@ -119,23 +120,38 @@ function createMcpAuthMiddleware(options) {
   }
 
   // Refresh Revocation Cache
-  async function isClientRevoked(clientId) {
-    if (!revocationsUri || !clientId) return false;
+  async function refreshRevocations() {
+    if (!revocationsUri) return;
     const now = Date.now();
 
     if (now >= revocationCache.expiresAt) {
       try {
         const data = await fetchJson(revocationsUri);
-        if (data && Array.isArray(data.revoked_client_ids)) {
-          revocationCache.revokedClientIds = new Set(data.revoked_client_ids);
+        if (data) {
+          if (Array.isArray(data.revoked_client_ids)) {
+            revocationCache.revokedClientIds = new Set(data.revoked_client_ids);
+          }
+          if (Array.isArray(data.revoked_jtis)) {
+            revocationCache.revokedJtis = new Set(data.revoked_jtis);
+          }
           revocationCache.expiresAt = now + revocationCacheTtlMs;
         }
       } catch (err) {
         // Soft fail on network issue, preserve existing cache
       }
     }
+  }
 
+  async function isClientRevoked(clientId) {
+    if (!clientId) return false;
+    await refreshRevocations();
     return revocationCache.revokedClientIds.has(clientId);
+  }
+
+  async function isJtiRevoked(jti) {
+    if (!jti) return false;
+    await refreshRevocations();
+    return revocationCache.revokedJtis.has(jti);
   }
 
   // Pure Node JWT Verification
@@ -189,10 +205,14 @@ function createMcpAuthMiddleware(options) {
       throw new Error(`Token expired at ${new Date(payload.exp * 1000).toISOString()}`);
     }
 
-    // Verify Revocation
+    // Verify Revocation (Client-level and JTI-level)
     const clientId = payload.client_id || payload.sub;
     if (await isClientRevoked(clientId)) {
       throw new Error(`Client "${clientId}" has been revoked by the administrator`);
+    }
+
+    if (payload.jti && await isJtiRevoked(payload.jti)) {
+      throw new Error('Token has been revoked or rotated');
     }
 
     return payload;

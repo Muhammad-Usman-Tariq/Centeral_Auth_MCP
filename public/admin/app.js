@@ -84,6 +84,7 @@ const detailCreatedAt = document.getElementById('detail-created-at');
 const detailRedirectsList = document.getElementById('detail-redirects-list');
 const detailGenTokenBtn = document.getElementById('detail-gen-token-btn');
 const detailToggleRevokeBtn = document.getElementById('detail-toggle-revoke-btn');
+const detailDeleteBtn = document.getElementById('detail-delete-btn');
 const detailRevokeLabel = document.getElementById('detail-revoke-label');
 const detailRevokeDesc = document.getElementById('detail-revoke-desc');
 const detailMiddlewareSnippet = document.getElementById('detail-middleware-snippet');
@@ -203,7 +204,7 @@ function escapeHtml(str) {
 }
 
 // --- Confirmation Modal Helper ---
-function showConfirm({ title, message, warning, customHtml = null, confirmText = 'Confirm', confirmClass = 'btn-danger', onConfirm }) {
+function showConfirm({ title, message, warning, customHtml = null, confirmText = 'Confirm', confirmClass = 'btn-danger', disableConfirm = false, onConfirm }) {
   confirmTitle.innerText = title || 'Confirm Action';
   confirmMessage.innerText = message || 'Are you sure you want to proceed?';
   
@@ -228,12 +229,14 @@ function showConfirm({ title, message, warning, customHtml = null, confirmText =
 
   confirmActionBtn.className = `btn ${confirmClass}`;
   confirmActionBtn.innerText = confirmText;
+  confirmActionBtn.disabled = Boolean(disableConfirm);
   state.confirmCallback = onConfirm;
   confirmModal.classList.remove('hidden');
 }
 
 function hideConfirm() {
   confirmModal.classList.add('hidden');
+  confirmActionBtn.disabled = false;
   state.confirmCallback = null;
   const customContent = document.getElementById('confirm-custom-content');
   if (customContent) {
@@ -507,6 +510,10 @@ function renderClientsTable() {
               ? `<button class="btn btn-xs btn-success-outline action-unrevoke-btn" data-id="${escapeHtml(client.client_id)}" title="Restore client access">Unrevoke</button>`
               : `<button class="btn btn-xs btn-danger-outline action-revoke-btn" data-id="${escapeHtml(client.client_id)}" title="Revoke all access immediately">Revoke</button>`
             }
+            <button class="btn btn-xs btn-danger-subtle action-delete-btn" data-id="${escapeHtml(client.client_id)}" title="Permanently delete client record">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              <span>Delete</span>
+            </button>
           </div>
         </td>
       </tr>
@@ -573,6 +580,13 @@ clientsTableBody.addEventListener('click', (e) => {
     return;
   }
 
+  const deleteBtn = e.target.closest('.action-delete-btn');
+  if (deleteBtn) {
+    const clientId = deleteBtn.getAttribute('data-id');
+    confirmDeleteClient(clientId);
+    return;
+  }
+
   const copyBtn = e.target.closest('.copy-text-btn');
   if (copyBtn) {
     const text = copyBtn.getAttribute('data-copy');
@@ -612,6 +626,12 @@ function getEventBadge(eventType) {
   const t = (eventType || '').toLowerCase();
   if (t.includes('issued') || t.includes('created') || t.includes('success')) {
     return `<span class="badge badge-success">${escapeHtml(eventType)}</span>`;
+  }
+  if (t.includes('rotated')) {
+    return `<span class="badge badge-purple">${escapeHtml(eventType)}</span>`;
+  }
+  if (t.includes('deleted')) {
+    return `<span class="badge badge-danger">${escapeHtml(eventType)}</span>`;
   }
   if (t.includes('failed') || t.includes('rejected') || t.includes('invalid')) {
     return `<span class="badge badge-danger">${escapeHtml(eventType)}</span>`;
@@ -1030,6 +1050,14 @@ detailToggleRevokeBtn.addEventListener('click', () => {
   }
 });
 
+if (detailDeleteBtn) {
+  detailDeleteBtn.addEventListener('click', () => {
+    if (state.selectedClientId) {
+      confirmDeleteClient(state.selectedClientId);
+    }
+  });
+}
+
 // --- Modal Helpers ---
 function openModal(modalEl) {
   modalEl.classList.remove('hidden');
@@ -1239,7 +1267,7 @@ function confirmGenerateStaticToken(clientId) {
     title: 'Generate Fresh Static Token',
     message: `Generate a fresh Mode 2 static token for "${clientName}"?`,
     customHtml: customHtml,
-    warning: 'Any previous static token issued for this client will continue working until its expiration or client revocation.',
+    warning: 'Generating a new token automatically invalidates the previous static token for this client — the client itself remains active.',
     confirmText: 'Generate Token',
     confirmClass: 'btn-primary',
     onConfirm: async () => {
@@ -1279,7 +1307,7 @@ function confirmGenerateStaticToken(clientId) {
           warningEl.innerText = 'SECURITY WARNING: No expiry — only use for long-running production MCPs where automatic rotation isn\'t feasible; revoke manually if compromised.';
           warningEl.classList.remove('hidden');
         } else {
-          warningEl.innerText = 'Any previous static token issued for this client will continue working until its expiration or client revocation.';
+          warningEl.innerText = 'Generating a new token automatically invalidates the previous static token for this client — the client itself remains active.';
         }
       });
     }
@@ -1345,6 +1373,61 @@ function confirmUnrevokeClient(clientId) {
       }
     }
   });
+}
+
+// 4. Permanently Delete Client (Destructive with Typed-Name Confirmation)
+function confirmDeleteClient(clientId) {
+  const client = state.clients.find(c => c.client_id === clientId);
+  if (!client) return;
+  const clientName = client.name || clientId;
+
+  const customHtml = `
+    <div style="margin-top: 10px;">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+        To confirm permanent deletion, type <strong style="color: var(--text-primary); user-select: all;">${escapeHtml(clientName)}</strong> below:
+      </p>
+      <input type="text" id="confirm-delete-input" autocomplete="off" placeholder="Type MCP name to confirm" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-container-low); color: var(--text-primary); font-size: 13px; font-family: var(--font-sans);">
+    </div>
+  `;
+
+  showConfirm({
+    title: 'Permanently Delete MCP Server',
+    message: `Are you sure you want to permanently delete "${escapeHtml(clientName)}"?`,
+    warning: 'PERMANENT DELETION: This action CANNOT be undone (unlike Revoke, which can be unrevoked). All client credentials will be destroyed immediately. Historical token audit events are preserved for compliance.',
+    customHtml: customHtml,
+    confirmText: 'Delete MCP Server',
+    confirmClass: 'btn-danger',
+    disableConfirm: true,
+    onConfirm: async () => {
+      try {
+        await apiFetch(`/admin/api/clients/${encodeURIComponent(clientId)}`, {
+          method: 'DELETE'
+        });
+        showToast(`Permanently deleted "${clientName}"`);
+
+        // If drawer is open for this client, close it
+        if (state.selectedClientId === clientId) {
+          closeDetailDrawer();
+        }
+
+        await loadClients();
+        await loadStats();
+        await loadAuditEvents();
+      } catch (err) {
+        showToast(err.message || 'Failed to delete MCP server', 'danger');
+      }
+    }
+  });
+
+  setTimeout(() => {
+    const inputEl = document.getElementById('confirm-delete-input');
+    if (inputEl) {
+      inputEl.focus();
+      inputEl.addEventListener('input', () => {
+        confirmActionBtn.disabled = inputEl.value.trim() !== clientName;
+      });
+    }
+  }, 50);
 }
 
 // --- Universal Copy to Clipboard Handler ---

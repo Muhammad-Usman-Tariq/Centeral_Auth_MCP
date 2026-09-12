@@ -446,8 +446,10 @@
             <select id="audit-type-filter" class="form-select">
               <option value="all">All Events</option>
               <option value="issued">Issued</option>
+              <option value="rotated">Rotated</option>
               <option value="failed">Failed</option>
               <option value="revoked">Revoked</option>
+              <option value="deleted">Deleted</option>
               <option value="registered">Registered</option>
               <option value="introspected">Introspected</option>
               <option value="admin_login">Admin Login</option>
@@ -1009,7 +1011,7 @@
             <div class="action-item">
               <div>
                 <strong>Generate New Static Token</strong>
-                <p class="text-muted text-xs">Issues a fresh 1-year or permanent signed RS256 JWT for header-based clients.</p>
+                <p class="text-muted text-xs">Generating a new token automatically invalidates the previous static token for this client — the client itself remains active.</p>
               </div>
               <button class="btn btn-sm btn-secondary" id="detail-gen-token-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
@@ -1023,6 +1025,14 @@
                 <p class="text-muted text-xs" id="detail-revoke-desc">Immediately invalidates both Mode 1 and Mode 2 tokens.</p>
               </div>
               <button class="btn btn-sm" id="detail-toggle-revoke-btn">Revoke</button>
+            </div>
+
+            <div class="action-item action-item-danger">
+              <div>
+                <strong class="text-danger">Delete MCP Server</strong>
+                <p class="text-muted text-xs">Permanently removes this client record. Cannot be undone. Audit logs are preserved.</p>
+              </div>
+              <button class="btn btn-sm btn-danger" id="detail-delete-btn">Delete</button>
             </div>
           </div>
         </div>

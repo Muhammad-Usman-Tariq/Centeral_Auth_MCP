@@ -50,6 +50,7 @@ def get_sqlite_fallback():
             allowed_redirect_uris TEXT DEFAULT '[]',
             client_type TEXT DEFAULT 'confidential',
             revoked INTEGER DEFAULT 0,
+            current_static_token_jti TEXT,
             created_at TEXT NOT NULL
         );
 
@@ -95,5 +96,13 @@ def get_sqlite_fallback():
         );
     """)
     conn.commit()
+
+    # Automatic migration for existing databases
+    try:
+        cursor.execute("ALTER TABLE mcp_clients ADD COLUMN current_static_token_jti TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
     _sqlite_fallback_conn = conn
     return _sqlite_fallback_conn

@@ -242,6 +242,24 @@ async def unrevoke_mcp_client(
         )
 
 
+@router.delete("/api/clients/{client_id_or_id}")
+async def delete_mcp_client(
+    client_id_or_id: str,
+    req: Request,
+    admin: Dict[str, Any] = Depends(get_current_admin)
+):
+    """Permanently delete an MCP client record while keeping historical audit logs intact."""
+    client_ip = req.client.host if req.client else "unknown"
+    try:
+        res = client_service.delete_client(client_id_or_id, ip_address=client_ip)
+        return {"success": True, "status": "deleted", "client": res}
+    except ValueError as e:
+        return JSONResponse(
+            status_code=404 if "not found" in str(e).lower() else 400,
+            content={"success": False, "message": str(e)}
+        )
+
+
 @router.post("/api/clients/{client_id_or_id}/static-token")
 async def generate_client_static_token(
     client_id_or_id: str,

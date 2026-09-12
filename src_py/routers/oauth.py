@@ -359,11 +359,26 @@ async def introspect(req: Request):
 
 @router.get("/revocations")
 def get_revocations(response: Response):
-    """Returns active list of revoked clients for instantaneous local verification checks by MCP middleware."""
+    """Returns active list of revoked clients and revoked token JTIs for instantaneous local verification checks by MCP middleware."""
     response.headers["Cache-Control"] = "no-cache"
     revoked_ids = models.get_revoked_client_ids()
+    revoked_jtis = models.get_revoked_token_jtis()
     import datetime
     return {
         "revoked_client_ids": revoked_ids,
+        "revoked_jtis": revoked_jtis,
         "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
+
+
+@router.get("/revoked-jtis")
+def get_revoked_jtis(response: Response):
+    """Returns active list of revoked token JTIs."""
+    response.headers["Cache-Control"] = "no-cache"
+    revoked_jtis = models.get_revoked_token_jtis()
+    import datetime
+    return {
+        "revoked_jtis": revoked_jtis,
+        "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+

@@ -161,6 +161,8 @@ def test_suite():
         assert no_exp_res.json()["staticToken"]["expiresIn"] == 3650 * 24 * 60 * 60, (
             f"Expected 3650 days for no-expiry static token, got {no_exp_res.json()['staticToken']['expiresIn']}"
         )
+        # Update static_token reference to current active token (since rotation invalidated the previous one)
+        static_token = no_exp_res.json()["staticToken"]["token"]
         print("  \033[32m[PASS]\033[0m Default static token expiry is 365 days; No-Expiry option issues 10-year token")
 
         # Validate envSnippet format and content
@@ -358,8 +360,114 @@ def test_suite():
         assert "revoked" in event_types
         print("  \033[32m[PASS]\033[0m Audit log captures token issuance and client revocation")
 
+        # -------------------------------------------------------------
+        print("\n\033[36m[TEST 9] Proper Static Token Rotation (Old JTI Revoked, New Token Valid, Client Active)\033[0m")
+        # -------------------------------------------------------------
+        rot_aud = f"mcp-rotation-{int(time.time() * 1000)}"
+        rot_create = session.post(
+            f"{base_url}/admin/api/clients",
+            json={
+                "name": "Rotation Test MCP",
+                "audience": rot_aud,
+                "allowedRedirectUris": ["http://127.0.0.1:9999/callback"],
+                "staticTokenDays": 365
+            },
+            headers=admin_headers
+        )
+        assert rot_create.status_code == 201
+        rot_data = rot_create.json()
+        rot_client_id = rot_data["client"]["client_id"]
+        rot_client_uuid = rot_data["client"]["id"]
+        token_v1 = rot_data["staticToken"]["token"]
+        jti_v1 = rot_data["staticToken"]["jti"]
+
+        # Spin up a test MCP service using McpAuthMiddleware targeting this audience
+        rot_app = FastAPI()
+        rot_app.add_middleware(
+            McpAuthMiddleware,
+            jwks_uri=f"{base_url}/.well-known/jwks.json",
+            audience=rot_aud,
+            revocations_uri=f"{base_url}/revocations",
+            revocation_cache_ttl=0  # Force immediate check on every request for testing
+        )
+
+        @rot_app.get("/test-endpoint")
+        def rot_endpoint():
+            return {"status": "ok"}
+
+        rot_test_client = TestClient(rot_app)
+
+        # 1. token_v1 succeeds
+        resp1 = rot_test_client.get("/test-endpoint", headers={"Authorization": f"Bearer {token_v1}"})
+        assert resp1.status_code == 200, f"Token v1 failed unexpectedly: {resp1.text}"
+
+        # 2. Rotate: generate replacement static token for this client
+        rotate_res = session.post(
+            f"{base_url}/admin/api/clients/{rot_client_uuid}/static-token",
+            json={"days": 365},
+            headers=admin_headers
+        )
+        assert rotate_res.status_code == 200
+        token_v2 = rotate_res.json()["staticToken"]["token"]
+        jti_v2 = rotate_res.json()["staticToken"]["jti"]
+        assert jti_v1 != jti_v2
+
+        # 3. Check /revocations returns revoked_jtis containing jti_v1
+        revocations_res = session.get(f"{base_url}/revocations")
+        assert revocations_res.status_code == 200
+        revocations_data = revocations_res.json()
+        assert "revoked_jtis" in revocations_data
+        assert jti_v1 in revocations_data["revoked_jtis"]
+        assert jti_v2 not in revocations_data["revoked_jtis"]
+
+        # Also check /revoked-jtis endpoint
+        jtis_res = session.get(f"{base_url}/revoked-jtis")
+        assert jtis_res.status_code == 200
+        assert jti_v1 in jtis_res.json()["revoked_jtis"]
+
+        # 4. Old token (token_v1) is now rejected with 401
+        resp_old = rot_test_client.get("/test-endpoint", headers={"Authorization": f"Bearer {token_v1}"})
+        assert resp_old.status_code == 401, f"Old token should be rejected: {resp_old.text}"
+        assert "revoked or rotated" in resp_old.json().get("error_description", "").lower()
+
+        # 5. New token (token_v2) succeeds with 200
+        resp_new = rot_test_client.get("/test-endpoint", headers={"Authorization": f"Bearer {token_v2}"})
+        assert resp_new.status_code == 200, f"New token should succeed: {resp_new.text}"
+
+        # 6. Client itself remains active (not revoked)
+        client_check = get_client_by_client_id(rot_client_id)
+        assert client_check is not None
+        assert client_check.get("revoked") is False
+        assert client_check.get("current_static_token_jti") == jti_v2
+        print("  \033[32m[PASS]\033[0m Static token rotation invalidates old token JTI, admits new token, leaves client active")
+
+        # -------------------------------------------------------------
+        print("\n\033[36m[TEST 10] Permanent Client Deletion (Audit Logs Retained)\033[0m")
+        # -------------------------------------------------------------
+        # Delete the rotation client
+        del_res = session.delete(f"{base_url}/admin/api/clients/{rot_client_uuid}", headers=admin_headers)
+        assert del_res.status_code == 200
+        del_data = del_res.json()
+        assert del_data["success"] is True
+        assert del_data["status"] == "deleted"
+
+        # Confirm client record no longer exists
+        assert get_client_by_client_id(rot_client_id) is None
+
+        # Confirm historical audit log entries for rot_client_id are preserved
+        audit_res2 = session.get(f"{base_url}/admin/api/audit?limit=100", headers=admin_headers)
+        assert audit_res2.status_code == 200
+        all_events = audit_res2.json()["events"]
+        client_events = [e for e in all_events if e.get("client_id") == rot_client_id]
+        assert len(client_events) >= 3, f"Expected historical events for deleted client, found: {len(client_events)}"
+        event_types_found = {e["event_type"] for e in client_events}
+        assert "registered" in event_types_found
+        assert "rotated" in event_types_found
+        assert "deleted" in event_types_found
+        print("  \033[32m[PASS]\033[0m Client permanently deleted, row removed, historical audit events retained intact")
+
         print("\n======================================================")
-        print(" ALL TESTS PASSED SUCCESSFULLY! (8/8 Suites)")
+        print(" ALL TESTS PASSED SUCCESSFULLY! (10/10 Suites)")
         print("======================================================\n")
 
     finally:

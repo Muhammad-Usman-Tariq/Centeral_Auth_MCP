@@ -35,7 +35,8 @@ def create_client(
     client_secret_hash: str,
     audience: str,
     allowed_redirect_uris: List[str],
-    client_type: str = "confidential"
+    client_type: str = "confidential",
+    current_static_token_jti: Optional[str] = None
 ) -> Dict[str, Any]:
     supabase = get_supabase_client()
     created_at = _now_iso()
@@ -49,6 +50,7 @@ def create_client(
         "allowed_redirect_uris": allowed_redirect_uris,
         "client_type": client_type,
         "revoked": False,
+        "current_static_token_jti": current_static_token_jti,
         "created_at": created_at
     }
 
@@ -61,11 +63,11 @@ def create_client(
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO mcp_clients 
-            (id, name, client_id, client_secret_hash, audience, allowed_redirect_uris, client_type, revoked, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+            (id, name, client_id, client_secret_hash, audience, allowed_redirect_uris, client_type, revoked, current_static_token_jti, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     """, (
         id, name, client_id, client_secret_hash, audience,
-        json.dumps(allowed_redirect_uris), client_type, created_at
+        json.dumps(allowed_redirect_uris), client_type, current_static_token_jti, created_at
     ))
     conn.commit()
     return get_client_by_client_id(client_id)
@@ -129,12 +131,12 @@ def get_client_by_audience(audience: str) -> Optional[Dict[str, Any]]:
 def list_clients() -> List[Dict[str, Any]]:
     supabase = get_supabase_client()
     if supabase:
-        res = supabase.table("mcp_clients").select("id, name, client_id, audience, allowed_redirect_uris, client_type, revoked, created_at").order("created_at", desc=True).execute()
+        res = supabase.table("mcp_clients").select("id, name, client_id, audience, allowed_redirect_uris, client_type, revoked, current_static_token_jti, created_at").order("created_at", desc=True).execute()
         return [_format_client(r) for r in (res.data or [])]
 
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, client_id, audience, allowed_redirect_uris, client_type, revoked, created_at FROM mcp_clients ORDER BY created_at DESC")
+    cursor.execute("SELECT id, name, client_id, audience, allowed_redirect_uris, client_type, revoked, current_static_token_jti, created_at FROM mcp_clients ORDER BY created_at DESC")
     return [_format_client(dict(r)) for r in cursor.fetchall()]
 
 
@@ -151,6 +153,34 @@ def update_client_revocation(id: str, revoked: bool) -> Optional[Dict[str, Any]]
     return get_client_by_id(id)
 
 
+def update_client_static_token_jti(id_or_client_id: str, jti: Optional[str]) -> bool:
+    """Updates current_static_token_jti for a client."""
+    supabase = get_supabase_client()
+    if supabase:
+        res = supabase.table("mcp_clients").update({"current_static_token_jti": jti}).or_(f"id.eq.{id_or_client_id},client_id.eq.{id_or_client_id}").execute()
+        return True
+
+    conn = get_sqlite_fallback()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE mcp_clients SET current_static_token_jti = ? WHERE id = ? OR client_id = ?", (jti, id_or_client_id, id_or_client_id))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def delete_client(id_or_client_id: str) -> bool:
+    """Permanently deletes a client from mcp_clients. Does NOT cascade delete token_events."""
+    supabase = get_supabase_client()
+    if supabase:
+        supabase.table("mcp_clients").delete().or_(f"id.eq.{id_or_client_id},client_id.eq.{id_or_client_id}").execute()
+        return True
+
+    conn = get_sqlite_fallback()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM mcp_clients WHERE id = ? OR client_id = ?", (id_or_client_id, id_or_client_id))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
 def get_revoked_client_ids() -> List[str]:
     supabase = get_supabase_client()
     if supabase:
@@ -160,6 +190,19 @@ def get_revoked_client_ids() -> List[str]:
     conn = get_sqlite_fallback()
     cursor = conn.cursor()
     cursor.execute("SELECT client_id FROM mcp_clients WHERE revoked = 1")
+    return [r[0] for r in cursor.fetchall()]
+
+
+def get_revoked_token_jtis() -> List[str]:
+    """Returns a list of all revoked token JTIs."""
+    supabase = get_supabase_client()
+    if supabase:
+        res = supabase.table("revoked_tokens").select("jti").execute()
+        return [r["jti"] for r in (res.data or [])]
+
+    conn = get_sqlite_fallback()
+    cursor = conn.cursor()
+    cursor.execute("SELECT jti FROM revoked_tokens")
     return [r[0] for r in cursor.fetchall()]
 
 
